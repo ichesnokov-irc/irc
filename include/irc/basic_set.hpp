@@ -306,7 +306,7 @@ namespace irc {
                 assert(v < _Range);
                 if constexpr (_NBkt == 1) {
                     return _ref_base{_One << v, a};
-                } else if constexpr (std::bit_width(_IEnd) < sizeof(int) * _Bbs) {
+                } else if constexpr (static_cast<std::size_t>(std::bit_width(_IEnd)) < sizeof(int) * _Bbs) {
                     return _ref_base{std::rotl(_One, static_cast<int>(v)), std::next(a, static_cast<difference_type>(v >> _Ibits))};
                 } else {
                     return _ref_base{_One << (v & _Imask), std::next(a, v >> _Ibits)};
@@ -519,7 +519,8 @@ namespace irc {
             return insert(static_cast<value_type&>(value));
         }
 
-        constexpr iterator insert(const_iterator, const value_type& value) noexcept {
+        constexpr iterator insert(const_iterator pos, const value_type& value) noexcept {
+            ((void)pos);
             assert(_is_valid(pos));
             assert(_in_range(value));
             reference ref = _ref(value);
