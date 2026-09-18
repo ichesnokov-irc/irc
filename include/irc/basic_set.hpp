@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <numeric>
 #include <functional>
-#include <utility>
 #include <initializer_list>
 #include <optional>
 #include <compare>
@@ -64,8 +63,7 @@ namespace irc {
             "storage item type (bucket) for irc::basic_set<> must be one of std::uintN_t");
 
         constexpr static std::uintmax_t _Max = static_cast<std::uintmax_t>(_Rlast) - static_cast<std::uintmax_t>(_Rfirst);
-        constexpr static std::size_t _Bbs = CHAR_BIT;
-        static_assert(_Bbs == 8); // apocalypse check
+        constexpr static std::size_t _Bbs = 8;
 
         using _Tu = detail::_underlying_uint_t<_Ty>;
         using _Ti = detail::_n_uint_t<std::max({sizeof(_Tu), sizeof(int), sizeof(detail::_up_uint_t<_Max>)})>;
@@ -96,8 +94,8 @@ namespace irc {
         constexpr static _Sty _Bmask = _Range % _BktBits ? static_cast<_Sty>(~(_Every << (_Range % _BktBits))) : _Every;
 
         using arr_t = std::array<_Sty, _NBkt>;
-        using arr_it = arr_t::iterator;
-        using arr_cit = arr_t::const_iterator;
+        using arr_it = typename arr_t::iterator;
+        using arr_cit = typename arr_t::const_iterator;
 
         constexpr static auto _range = std::views::iota(_Ti{}, _Range)
             | std::views::transform([](_Ti v) -> _Ty { return static_cast<_Ty>(v + _Ufirst); });
@@ -521,7 +519,7 @@ namespace irc {
             return insert(static_cast<value_type&>(value));
         }
 
-        constexpr iterator insert(const_iterator pos, const value_type& value) noexcept {
+        constexpr iterator insert(const_iterator, const value_type& value) noexcept {
             assert(_is_valid(pos));
             assert(_in_range(value));
             reference ref = _ref(value);
@@ -618,7 +616,7 @@ namespace irc {
 
         constexpr void merge(basic_set&& src) noexcept {
             // we do not modify the src because its assumed to be moved in
-            std::transform(a.begin(), a.end(), src.begin(), a.begin(), std::bit_or);
+            std::transform(a.begin(), a.end(), src.begin(), a.begin(), std::bit_or{});
         }
 
         [[nodiscard]] constexpr const_iterator find(const key_type& key) const noexcept {
@@ -642,7 +640,7 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr iterator find(const K& x) noexcept(_is_nothrow_cmp<K>()) {
-            return _const().find<K>(x);
+            return _const().template find<K>(x);
         }
 
         [[nodiscard]] constexpr bool contains(const key_type& key) const noexcept {
@@ -707,7 +705,7 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr std::pair<iterator, iterator> equal_range(const K& x) noexcept(_is_nothrow_cmp<K>()) {
-            return _const().equal_range<K>(x);
+            return _const().template equal_range<K>(x);
         }
 
         [[nodiscard]] constexpr const_iterator lower_bound(const key_type& key) const noexcept {
@@ -740,7 +738,7 @@ namespace irc {
         
         template <typename K>
         [[nodiscard]] constexpr iterator lower_bound(const K& x) noexcept(_is_nothrow_cmp<K>()) {
-            return _const().lower_bound<K>(x);
+            return _const().template lower_bound<K>(x);
         }
 
         [[nodiscard]] constexpr const_iterator upper_bound(const key_type& key) const noexcept {
@@ -766,7 +764,7 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr iterator upper_bound(const K& x) noexcept(_is_nothrow_cmp<K>()) {
-            return _const().upper_bound<K>(x);
+            return _const().template upper_bound<K>(x);
         }
 
         constexpr key_compare key_comp() const noexcept {
@@ -892,7 +890,7 @@ namespace irc {
             for (size_type i = 0; i != end; ++i) {
                 const _CharT c = *it++;
                 if (!(_Traits::eq(c, zero) || _Traits::eq(c, one))) {
-                    throw std::invalid_argument{};
+                    throw std::invalid_argument("only zero or one is expected in input string");
                 }
                 if (_Traits::eq(c, one)) {
                     _ref_pos(i).set();
@@ -914,7 +912,7 @@ namespace irc {
         [[nodiscard]] constexpr unsigned long to_ulong() const {
             using ulong = unsigned long;
             if (width() > sizeof(ulong) * _Bbs) {
-                throw std::overflow_error{};
+                throw std::overflow_error("value can't fit in ulong");
             }
             if constexpr (sizeof(_Sty) >= sizeof(ulong)) {
                 return static_cast<ulong>(a[0]);
@@ -932,7 +930,7 @@ namespace irc {
         [[nodiscard]] constexpr unsigned long long to_ullong() const {
             using ullong = unsigned long long;
             if (width() > sizeof(ullong) * _Bbs) {
-                throw std::overflow_error{};
+                throw std::overflow_error("value can't fit in ullong");
             }
             if constexpr (sizeof(_Sty) >= sizeof(ullong)) {
                 return static_cast<ullong>(a[0]);
@@ -959,7 +957,7 @@ namespace irc {
 
         [[nodiscard]] constexpr bool test(_Ty pos) const {
             if (!_in_range(pos)) {
-                throw std::out_of_range{};
+                throw std::out_of_range("position outside the range");
             }
             return _ref(pos);
         }
@@ -1054,7 +1052,7 @@ namespace irc {
 
         constexpr basic_set& set(_Ty pos, bool value = true) {
             if (!_in_range(pos)) {
-                throw std::out_of_range{};
+                throw std::out_of_range("position outside the range");
             }
             _ref(pos) = value;
             return *this;
@@ -1067,7 +1065,7 @@ namespace irc {
 
         constexpr basic_set& reset(_Ty pos) {
             if (!_in_range(pos)) {
-                throw std::out_of_range{};
+                throw std::out_of_range("position outside the range");
             }
             _ref(pos).reset();
             return *this;
@@ -1081,7 +1079,7 @@ namespace irc {
 
         constexpr basic_set& flip(_Ty pos) {
             if (!_in_range(pos)) {
-                throw std::out_of_range{};
+                throw std::out_of_range("position outside the range");
             }
             _ref(pos).flip();
             return *this;
@@ -1095,7 +1093,7 @@ namespace irc {
 
         constexpr explicit basic_set(const _Sty* a, size_type n = array_size()) noexcept : a{} {
             std::copy_n(a, std::min(_NBkt, n), this->a.begin());
-            a.back() &= _Bmask;
+            this->a.back() &= _Bmask;
         }
 
         [[nodiscard]] constexpr static size_type array_size() noexcept {
@@ -1543,40 +1541,40 @@ namespace irc {
         }
 
     public:
-        friend constexpr static bool operator ==(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr bool operator ==(const basic_set& lr, const basic_set& rr) noexcept {
             return lr.a == rr.a;
         }
 
-        friend constexpr static std::strong_ordering operator <=>(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr std::strong_ordering operator <=>(const basic_set& lr, const basic_set& rr) noexcept {
             return lr.a <=> rr.a;
         }
     
-        friend constexpr static basic_set operator &(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr basic_set operator &(const basic_set& lr, const basic_set& rr) noexcept {
             basic_set res;
             std::transform(lr.a.cbegin(), lr.a.cend(), rr.a.cbegin(), res.a.begin(), std::bit_and{});
             return res;
         }
 
-        friend constexpr static basic_set operator |(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr basic_set operator |(const basic_set& lr, const basic_set& rr) noexcept {
             basic_set res;
             std::transform(lr.a.cbegin(), lr.a.cend(), rr.a.cbegin(), res.a.begin(), std::bit_or{});
             return res;
         }
 
-        friend constexpr static basic_set operator ^(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr basic_set operator ^(const basic_set& lr, const basic_set& rr) noexcept {
             basic_set res;
             std::transform(lr.a.cbegin(), lr.a.cend(), rr.a.cbegin(), res.a.begin(), std::bit_xor{});
             return res;
         }
 
-        friend constexpr static basic_set operator -(const basic_set& lr, const basic_set& rr) noexcept {
+        friend constexpr basic_set operator -(const basic_set& lr, const basic_set& rr) noexcept {
             basic_set res;
             std::transform(lr.a.cbegin(), lr.a.cend(), rr.a.cbegin(), res.a.begin(), [](_Sty b1, _Sty b2) { return b1 & ~b2; });
             return res;
         }
 
         template <typename _CharT, typename _Traits>
-        friend static std::basic_ostream<_CharT, _Traits>& operator <<(std::basic_ostream<_CharT, _Traits>& os, const basic_set& r) {
+        friend std::basic_ostream<_CharT, _Traits>& operator <<(std::basic_ostream<_CharT, _Traits>& os, const basic_set& r) {
             using _OsT = std::basic_ostream<_CharT, _Traits>;
             const typename _OsT::sentry ok{os};
             if (ok) {
@@ -1590,7 +1588,7 @@ namespace irc {
         }
 
         template <typename _CharT, typename _Traits>
-        friend static std::basic_istream<_CharT, _Traits>& operator >>(std::basic_istream<_CharT, _Traits>& is, basic_set& r) {
+        friend std::basic_istream<_CharT, _Traits>& operator >>(std::basic_istream<_CharT, _Traits>& is, basic_set& r) {
             detail::_temp<basic_set> tmp;
             using _IsT = std::basic_istream<_CharT, _Traits>;
             const typename _IsT::sentry ok{is};
@@ -1652,7 +1650,7 @@ namespace irc {
 
     template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty, typename _UnaryPred>
     constexpr std::size_t erase_if(basic_set<_Ty, _Rfirst, _Rlast, _Sty>& r, _UnaryPred&& pred) noexcept {
-        return r.flip_if<1>(std::forward<_UnaryPred>(pred));
+        return r.template flip_if<1>(std::forward<_UnaryPred>(pred));
     }
 }
 
