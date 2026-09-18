@@ -5,7 +5,7 @@
 #pragma once
 
 #include "basic_set_detail.hpp"
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 #include <numeric>
 #include <functional>
