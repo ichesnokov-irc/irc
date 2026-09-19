@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "enum_set_detail.hpp"
+#include "detail/enum_set_detail.hpp"
 #include "basic_set.hpp"
 
 namespace irc {

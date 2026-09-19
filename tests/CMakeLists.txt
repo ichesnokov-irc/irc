@@ -11,7 +11,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(irc_tests test.cpp)
+add_executable(irc_tests
+    main.cpp
+    test_irc_basic_set.cpp
+)
 
 target_include_directories(irc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 
@@ -22,7 +25,7 @@ set_target_properties(irc_tests PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
-target_link_libraries(irc_tests PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(irc_tests PRIVATE Catch2::Catch2)
 
 if(MSVC)
     target_compile_options(irc_tests PRIVATE /W4 /WX)

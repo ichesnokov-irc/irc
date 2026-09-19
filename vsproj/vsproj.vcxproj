@@ -20,14 +20,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\irc\basic_set.hpp" />
-    <ClInclude Include="..\include\irc\basic_set_detail.hpp" />
     <ClInclude Include="..\include\irc\bitset.hpp" />
+    <ClInclude Include="..\include\irc\detail\basic_set_detail.hpp" />
+    <ClInclude Include="..\include\irc\detail\enum_set_detail.hpp" />
+    <ClInclude Include="..\include\irc\detail\set_detail.hpp" />
     <ClInclude Include="..\include\irc\enum_set.hpp" />
-    <ClInclude Include="..\include\irc\enum_set_detail.hpp" />
     <ClInclude Include="..\include\irc\irc.hpp" />
     <ClInclude Include="..\include\irc\max_set.hpp" />
     <ClInclude Include="..\include\irc\set.hpp" />
-    <ClInclude Include="..\include\irc\set_detail.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\LICENSE" />
@@ -36,7 +36,8 @@
     <None Include=".runsettings" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\tests\test.cpp" />
+    <ClCompile Include="..\tests\main.cpp" />
+    <ClCompile Include="..\tests\test_irc_basic_set.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\CMakeLists.txt" />

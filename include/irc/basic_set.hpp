@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "basic_set_detail.hpp"
+#include "detail/basic_set_detail.hpp"
 #include <cassert>
 #include <algorithm>
 #include <numeric>
@@ -184,7 +184,7 @@ namespace irc {
         public:
             using iterator_category = std::bidirectional_iterator_tag;
             using difference_type = std::ptrdiff_t;
-            using value_type = _Ty;
+            using value_type = const _Ty;
             using pointer = const _Ty*;
             using reference = const _Ty&;
 
@@ -193,7 +193,7 @@ namespace irc {
             [[nodiscard]] constexpr bool operator ==(const _iterator& other) const noexcept { return v == other.v; }
             [[nodiscard]] constexpr std::strong_ordering operator <=>(const _iterator& other) const noexcept { return v <=> other.v; }
 
-            [[nodiscard]] constexpr _Ty operator *() const noexcept {
+            [[nodiscard]] constexpr const _Ty operator *() const noexcept {
                 assert(v <= _ILast); // Past-the-end or corrupted iterator
                 return key();
             }
@@ -267,7 +267,7 @@ namespace irc {
             [[nodiscard]] constexpr bool operator ==(const _local_iterator& other) const noexcept { return it == other.it; }
             [[nodiscard]] constexpr std::strong_ordering operator <=>(const _local_iterator& other) const noexcept { return it <=> other.it; }
 
-            [[nodiscard]] constexpr _Ty operator *() const noexcept {
+            [[nodiscard]] constexpr const _Ty operator *() const noexcept {
                 return *it;
             }
 
@@ -423,7 +423,11 @@ namespace irc {
 
         constexpr basic_set() noexcept : a{} {}
         constexpr basic_set(const basic_set&) noexcept = default;
-        constexpr basic_set(basic_set&&) noexcept = default;
+        
+        constexpr basic_set(basic_set&& src) noexcept {
+            a = std::move(src.a);
+            src.clear();
+        }
 
         template <typename _InIt>
         constexpr basic_set(_InIt first, _InIt last) : a{} {
@@ -802,15 +806,8 @@ namespace irc {
             return _end(i);
         }
 
-        constexpr hasher hash_function() const noexcept {
-            return hasher{};
-        }
-
         constexpr key_equal key_eq() const noexcept {
             return key_equal{};
-        }
-
-        constexpr void reshash() noexcept {
         }
 
         constexpr void reserve(size_type) noexcept {
@@ -1663,3 +1660,6 @@ namespace std {
         }
     };
 }
+
+template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+inline constexpr bool std::ranges::disable_sized_range<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> = (irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::bucket_count() > 1);
