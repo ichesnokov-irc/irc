@@ -5,7 +5,7 @@
     <Logging>debug</Logging>
     <FilenameFilter>irc_tests</FilenameFilter>
     <WorkingDirectoryRoot>Executable</WorkingDirectoryRoot>
-	<DiscoverCommandLine>--list-tests *</DiscoverCommandLine>
+	<DiscoverCommandLine>--verbosity high --list-tests *</DiscoverCommandLine>
     <IncludeMode>RunSettings</IncludeMode>
     <ExecutionMode>TestList</ExecutionMode>
   </Catch2Adapter>
