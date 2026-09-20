@@ -4,11 +4,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
+#include <catch2/generators/catch_generators_all.hpp>
 
 #include <irc/basic_set.hpp>
 #include <irc/max_set.hpp>
 
 #include <vector>
+#include <set>
 #include <tuple>
 #include <concepts>
 
@@ -61,14 +63,23 @@ TEMPLATE_LIST_TEST_CASE(
     using It = typename Set::iterator;
     using ConstIt = typename Set::const_iterator;
     using DerefType = decltype(*std::declval<It>());
+
     constexpr auto First = Set::first();
     constexpr auto Last = Set::last();
-    constexpr auto Mid = Key{Set::first() + (Set::last() - Set::first()) / 2};
+    constexpr std::size_t NRange = static_cast<std::size_t>(Set::last() - Set::first() + 1);
+    constexpr auto Mid = static_cast<Key>(Set::first() + NRange / 2);
     static_assert(First != Last && First != Mid && Last != Mid, "Check boundaries");
+    
+    const std::size_t NRnd = NRange - NRange / 4;
+    const auto Rnd = GENERATE(chunk(NRnd, take(NRnd, random(First, Last)))) | std::views::all;
+    assert(std::ranges::size(Rnd) == NRnd);
+    
+    const std::set<Key> RndUnique{Rnd.begin(), Rnd.end()};
+    const std::size_t NRndUnique = RndUnique.size();
 
     SECTION("Custom set container matches C++20 standard concepts") {
 
-        SECTION("Static Analysis : Named requirements for std::set compliance") {
+        SECTION("Named requirements for std::set compliance") {
             STATIC_REQUIRE(std::regular<Set>);
             STATIC_REQUIRE(std::swappable<Set>);
             STATIC_REQUIRE(std::is_default_constructible_v<Set>);
@@ -100,6 +111,25 @@ TEMPLATE_LIST_TEST_CASE(
     }
 
     SECTION("Custom set iterators match C++20 iterator concepts") {
+
+        SECTION("Named requirements for std::set iterators' compliance") {
+            STATIC_REQUIRE(std::regular<It>);
+            STATIC_REQUIRE(std::swappable<It>);
+            STATIC_REQUIRE(std::is_default_constructible_v<It>);
+            STATIC_REQUIRE(std::is_copy_constructible_v<It>);
+            STATIC_REQUIRE(std::is_copy_assignable_v<It>);
+            STATIC_REQUIRE(std::is_move_constructible_v<It>);
+            STATIC_REQUIRE(std::is_move_assignable_v<It>);
+
+            STATIC_REQUIRE(std::regular<ConstIt>);
+            STATIC_REQUIRE(std::swappable<ConstIt>);
+            STATIC_REQUIRE(std::is_default_constructible_v<ConstIt>);
+            STATIC_REQUIRE(std::is_copy_constructible_v<ConstIt>);
+            STATIC_REQUIRE(std::is_copy_assignable_v<ConstIt>);
+            STATIC_REQUIRE(std::is_move_constructible_v<ConstIt>);
+            STATIC_REQUIRE(std::is_move_assignable_v<ConstIt>);
+        }
+
         SECTION("Iterator category and concepts compliance") {
             STATIC_REQUIRE(std::bidirectional_iterator<It>);
             STATIC_REQUIRE(std::bidirectional_iterator<ConstIt>);
@@ -129,6 +159,10 @@ TEMPLATE_LIST_TEST_CASE(
             STATIC_REQUIRE(std::bidirectional_iterator<RevIt>);
             STATIC_REQUIRE(std::bidirectional_iterator<ConstRevIt>);
         }
+    }
+
+    SECTION("Static checks") {
+        STATIC_REQUIRE(Set{}.max_size() == NRange);
     }
 
     SECTION("Constructors") {
@@ -223,6 +257,12 @@ TEMPLATE_LIST_TEST_CASE(
             REQUIRE(my_set.contains(Key{First + 1}));
             REQUIRE(my_set.contains(Key{Last - 1}));
         }
+
+        SECTION("Heavy constructor") {
+            Set my_set(Rnd.begin(), Rnd.end());
+            REQUIRE(my_set.size() == NRndUnique);
+            REQUIRE(std::equal(RndUnique.begin(), RndUnique.end(), my_set.begin()));
+        }
     }
 
     SECTION("Assignment") {
@@ -261,6 +301,16 @@ TEMPLATE_LIST_TEST_CASE(
             // Verify data was correctly transferred
             auto it = set2.begin();
             REQUIRE(*it == First);
+        }
+
+        SECTION("Heavy Copy Assignment") {
+            Set set1;
+            set1.insert(Rnd.begin(), Rnd.end());
+
+            Set set2;
+            set2 = set1;
+            REQUIRE(set2.size() == NRndUnique);
+            REQUIRE(std::equal(RndUnique.begin(), RndUnique.end(), set2.begin()));
         }
     }
 
@@ -423,6 +473,28 @@ TEMPLATE_LIST_TEST_CASE(
                 // Advancing from First should now cleanly find the Mid
                 ++it;
                 REQUIRE(*it == Mid);
+            }
+
+            SECTION("Heavy iteration") {
+                Set s{Rnd.begin(), Rnd.end()};
+                
+                std::vector<Key> a;
+                for (auto v : s) {
+                    a.push_back(v);
+                }
+
+                REQUIRE(std::equal(a.begin(), a.end(), s.begin()));
+            }
+
+            SECTION("Heavy backward iteration") {
+                Set s{Rnd.begin(), Rnd.end()};
+
+                std::vector<Key> a;
+                for (auto it = a.rbegin(), end = a.rend(); it != end; ++it) {
+                    a.push_back(*it);
+                }
+
+                REQUIRE(std::equal(a.begin(), a.end(), s.rbegin()));
             }
         }
     }

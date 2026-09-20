@@ -13,7 +13,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(irc_tests
     main.cpp
-    test_irc_basic_set.cpp
+    basic_set_test.cpp
 )
 
 target_include_directories(irc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../include")

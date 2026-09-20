@@ -37,7 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\tests\main.cpp" />
-    <ClCompile Include="..\tests\test_irc_basic_set.cpp" />
+    <ClCompile Include="..\tests\basic_set_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\CMakeLists.txt" />
