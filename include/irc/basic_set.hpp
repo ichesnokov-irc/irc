@@ -638,10 +638,13 @@ namespace irc {
         }
 
         constexpr void merge(basic_set& src) noexcept {
+            if (&src == this) {
+                return;
+            }
             std::transform(a.begin(), a.end(), src.a.begin(), a.begin(), [](_Sty b1, _Sty& b2) {
-                const _Sty m = b1 & b2;
+                const _Sty m = b1;
                 b1 |= b2;
-                b2 &= ~m;
+                b2 &= m;
                 return b1;
             });
         }

@@ -74,7 +74,7 @@ TEMPLATE_LIST_TEST_CASE(
     
     constexpr auto First1 = static_cast<Key>(Set::first() + 1);
     constexpr auto Last1 = static_cast<Key>(Set::last() - 1);
-    static_assert(First1 != Last1, "Check correctness");
+    static_assert(First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid, "Check correctness");
 
     const std::size_t NRnd = NRange - NRange / 4;
     const auto Rnd = GENERATE(chunk(NRnd, take(NRnd, random(First, Last)))) | std::views::all;
@@ -518,7 +518,7 @@ TEMPLATE_LIST_TEST_CASE(
             REQUIRE(s.begin() == s.end());
         }
 
-        SECTION("Set::insert - All overloads") {
+        SECTION("Set::insert - All overloads (C++20)") {
             SECTION("Single value lvalue reference") {
                 Set my_set;
                 Key val = Mid;
@@ -621,9 +621,26 @@ TEMPLATE_LIST_TEST_CASE(
                 REQUIRE(*it == Last);
                 REQUIRE(my_set.size() == 2);
             }
+
+            SECTION("Extracting a non-existent key value") {
+                // Attempt to extract a key that is not in the set
+                Set my_set{ First, First1, Last };
+                auto nh = my_set.extract(Mid);
+
+                // Standard Requirement: The returned node handle must be empty
+                // In C++, node handles provide a boolean conversion or an .empty() method
+                REQUIRE(nh.empty());
+                REQUIRE(!nh); // Should safely implicitly convert to false
+
+                // Standard Requirement: The set composition and size must remain unchanged
+                REQUIRE(my_set.size() == 3);
+
+                std::vector<Key> expected = {First, First1, Last};
+                REQUIRE_THAT(my_set, Catch::Matchers::RangeEquals(expected));
+            }
         }
 
-        SECTION("Set::emplace - All Overloads") {
+        SECTION("Set::emplace - All Overloads (C++20)") {
             SECTION("Standard emplace") {
                 Set my_set;
 
@@ -691,6 +708,57 @@ TEMPLATE_LIST_TEST_CASE(
 
                 REQUIRE(set_a.empty());
                 REQUIRE_THAT(empty_set, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
+            }
+        }
+
+        SECTION("Set::merge - All Overloads (C++20)") {
+            SECTION("Standard merge with disjoint elements (lvalue source)") {
+                Set target = { First, Last };
+                Set source = { First1, Last1 };
+
+                // Source elements are spliced into target
+                target.merge(source);
+
+                // Target should now contain all sorted elements
+                REQUIRE_THAT(target, Catch::Matchers::RangeEquals(std::vector<Key>{First, First1, Last1, Last}));
+
+                // Disjoint elements must be entirely moved, leaving source empty
+                REQUIRE(source.empty());
+            }
+
+            SECTION("Standard merge with overlapping duplicate elements") {
+                Set target = { First, First1 };
+                Set source = { First1, Last };
+
+                target.merge(source);
+
+                // Target contains unique merged elements
+                REQUIRE_THAT(target, Catch::Matchers::RangeEquals(std::vector<Key>{First, First1, Last}));
+
+                // The duplicate element First1 remains inside the source set
+                REQUIRE_THAT(source, Catch::Matchers::RangeEquals(std::vector<Key>{First1}));
+            }
+
+            SECTION("Merge with an rvalue source container") {
+                Set target = { First, Last };
+
+                // Merging from a temporary rvalue container
+                target.merge(Set{First1, Last1});
+
+                REQUIRE_THAT(target, Catch::Matchers::RangeEquals(std::vector<Key>{First, First1, Last1, Last}));
+            }
+
+            SECTION("Merging empty source or merging into itself") {
+                Set target = { First, Last };
+                Set empty_source;
+
+                // Merging empty should do nothing
+                target.merge(empty_source);
+                REQUIRE(target.size() == 2);
+
+                // Edge-case standard compliance: Merging a container into itself should be a no-op
+                target.merge(target);
+                REQUIRE_THAT(target, Catch::Matchers::RangeEquals(std::vector<Key>{First, Last}));
             }
         }
     }
