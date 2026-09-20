@@ -141,10 +141,10 @@ Fusing the APIs of `std::set` and `std::bitset` introduces a semantic ambiguity 
 - `std::set::size()` returns the number of elements currently present.
 - `std::bitset::size()` returns the total number of bits (capacity).
 
-> [!WARNING]
-> In `irc::basic_set`, the `std::set` behavior takes priority. Calling `.size()` always returns the active count of unique elements. To query the complete bit capacity, use `.max_size()`.
+### 5. Iterators and .swap() and moving
+Iterators and references of swapped or moved-in `std::basic_set` objects remain generally valid, but do not change their ownership to new container. They can start point to erased elements.
 
-### 5. Fixed `key_compare` Constraint
+### 6. Fixed `key_compare` Constraint
 > [!IMPORTANT]
 > The member types `key_compare` and `value_compare` are permanently aliased to `std::less<>` (making them transparent by default). It is **impossible** to provide a custom comparator or invert the sort order (e.g., using `std::greater`). 
 

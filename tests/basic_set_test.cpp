@@ -72,6 +72,10 @@ TEMPLATE_LIST_TEST_CASE(
     constexpr auto Mid = static_cast<Key>(Set::first() + NRange / 2);
     static_assert(First != Last && First != Mid && Last != Mid, "Check boundaries");
     
+    constexpr auto First1 = static_cast<Key>(Set::first() + 1);
+    constexpr auto Last1 = static_cast<Key>(Set::last() - 1);
+    static_assert(First1 != Last1, "Check correctness");
+
     const std::size_t NRnd = NRange - NRange / 4;
     const auto Rnd = GENERATE(chunk(NRnd, take(NRnd, random(First, Last)))) | std::views::all;
     assert(std::ranges::size(Rnd) == NRnd);
@@ -252,12 +256,12 @@ TEMPLATE_LIST_TEST_CASE(
         }
 
         SECTION("Standard values strictly within interval margins") {
-            std::vector<Key> src{ Key{First + 1}, Key{Last - 1} };
+            std::vector<Key> src{ First1, Last1 };
             Set my_set(src.begin(), src.end());
 
             REQUIRE(my_set.size() == 2);
-            REQUIRE(my_set.contains(Key{First + 1}));
-            REQUIRE(my_set.contains(Key{Last - 1}));
+            REQUIRE(my_set.contains(First1));
+            REQUIRE(my_set.contains(Last1));
         }
 
         SECTION("Heavy constructor") {
@@ -514,7 +518,7 @@ TEMPLATE_LIST_TEST_CASE(
             REQUIRE(s.begin() == s.end());
         }
 
-        SECTION("Set::insert - Complete C++20 Specification Test Suite") {
+        SECTION("Set::insert - All overloads") {
             SECTION("Single value lvalue reference") {
                 Set my_set;
                 Key val = Mid;
@@ -598,10 +602,15 @@ TEMPLATE_LIST_TEST_CASE(
                 // Direct node insertion
                 Set my_set;
                 auto result = my_set.insert(std::move(nh));
-                REQUIRE(result.inserted == true);
+                REQUIRE(result.inserted);
                 REQUIRE(*(result.position) == Mid);
                 REQUIRE(result.node.empty()); // The node handle is now empty
                 REQUIRE(my_set.size() == 1);
+
+                // Empty node insertion
+                auto result_empty = my_set.insert(std::move(nh));
+                REQUIRE(!result_empty.inserted);
+                REQUIRE(result_empty.position == my_set.end());
 
                 // Node insertion with hint
                 source_set.insert(Last);
@@ -611,6 +620,77 @@ TEMPLATE_LIST_TEST_CASE(
                 auto it = my_set.insert(hint, std::move(nh2));
                 REQUIRE(*it == Last);
                 REQUIRE(my_set.size() == 2);
+            }
+        }
+
+        SECTION("Set::emplace - All Overloads") {
+            SECTION("Standard emplace") {
+                Set my_set;
+
+                auto [it1, inserted1] = my_set.emplace(Mid);
+
+                REQUIRE(inserted1);
+                REQUIRE(*it1 == Mid);
+                REQUIRE(my_set.size() == 1);
+
+                // Attempting to emplace a duplicate (by id rules defined in <=>)
+                auto [it2, inserted2] = my_set.emplace(Mid);
+
+                REQUIRE(!inserted2);
+                REQUIRE(it1 == it2); // Iterator should point to the pre-existing element
+                REQUIRE(my_set.size() == 1);
+            }
+
+            SECTION("emplace_hint (Position-assisted placement)") {
+                Set my_set;
+                my_set.emplace(First);
+                my_set.emplace(Last);
+
+                auto hint = my_set.find(First);
+
+                // emplace_hint returns only an iterator (no boolean)
+                auto it = my_set.emplace_hint(hint, Mid);
+
+                REQUIRE(*it == Mid);
+                REQUIRE(my_set.size() == 3);
+
+                // Validate final sequential alignment
+                std::vector<int> expected = { First, Mid, Last };
+                REQUIRE_THAT(my_set, Catch::Matchers::RangeEquals(expected));
+            }
+        }
+
+        SECTION("Set::swap") {
+            Set set_a = { First, Mid, Last };
+            Set set_b = { First1, Last1 };
+
+            SECTION("Member swap function") {
+                // Perform member swap
+                set_a.swap(set_b);
+
+                // Verify elements are fully swapped using Catch2 v3 RangeEquals
+                REQUIRE_THAT(set_a, Catch::Matchers::RangeEquals(std::vector<Key>{First1, Last1}));
+                REQUIRE_THAT(set_b, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
+
+                REQUIRE(set_a.size() == 2);
+                REQUIRE(set_b.size() == 3);
+            }
+
+            SECTION("Non-member swap (ADL / std::swap compliance)") {
+                // C++ standard way to invoke swap using Argument-Dependent Lookup (ADL)
+                using std::swap;
+                swap(set_a, set_b);
+
+                REQUIRE_THAT(set_a, Catch::Matchers::RangeEquals(std::vector<Key>{First1, Last1}));
+                REQUIRE_THAT(set_b, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
+            }
+
+            SECTION("Swapping with an empty Set") {
+                Set empty_set;
+                set_a.swap(empty_set);
+
+                REQUIRE(set_a.empty());
+                REQUIRE_THAT(empty_set, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
             }
         }
     }
