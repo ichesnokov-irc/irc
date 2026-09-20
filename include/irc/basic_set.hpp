@@ -22,6 +22,9 @@
 
 namespace irc {
 
+    template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+    class basic_set;
+
     template <typename _Ty>
     class set_nh {
     public:
@@ -50,6 +53,9 @@ namespace irc {
 
     private:
         mutable std::optional<_Ty> v;
+        
+        template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+        friend class basic_set;
     };
 
     template <
@@ -221,7 +227,7 @@ namespace irc {
                 return cpy;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         class _local_iterator {
@@ -288,7 +294,7 @@ namespace irc {
                 return cpy;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         template <typename _ItA>
@@ -332,7 +338,7 @@ namespace irc {
                 return *p & i;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         class _reference : public _ref_base<arr_it> {
@@ -389,7 +395,7 @@ namespace irc {
                 return v1 != v2;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         struct _insert_return_type {
@@ -570,6 +576,7 @@ namespace irc {
                 return {_end(), false, {}};
             }
             const auto [it, inserted] = insert(nh.value());
+            nh.v.reset();
             return {it, inserted, nh};
         }
 

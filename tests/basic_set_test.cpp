@@ -5,6 +5,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/generators/catch_generators_all.hpp>
+#include <catch2/matchers/catch_matchers_vector.hpp>
+#include <catch2/matchers/catch_matchers_range_equals.hpp>
 
 #include <irc/basic_set.hpp>
 #include <irc/max_set.hpp>
@@ -261,7 +263,13 @@ TEMPLATE_LIST_TEST_CASE(
         SECTION("Heavy constructor") {
             Set my_set(Rnd.begin(), Rnd.end());
             REQUIRE(my_set.size() == NRndUnique);
-            REQUIRE(std::equal(RndUnique.begin(), RndUnique.end(), my_set.begin()));
+            REQUIRE_THAT(RndUnique, Catch::Matchers::RangeEquals(my_set));
+        }
+
+        SECTION("Heavy comparable constructors") {
+            Set set1(Rnd.begin(), Rnd.end());
+            Set set2(RndUnique.begin(), RndUnique.end());
+            REQUIRE_THAT(set1, Catch::Matchers::RangeEquals(set2));
         }
     }
 
@@ -310,7 +318,7 @@ TEMPLATE_LIST_TEST_CASE(
             Set set2;
             set2 = set1;
             REQUIRE(set2.size() == NRndUnique);
-            REQUIRE(std::equal(RndUnique.begin(), RndUnique.end(), set2.begin()));
+            REQUIRE_THAT(RndUnique, Catch::Matchers::RangeEquals(set2));
         }
     }
 
@@ -476,25 +484,133 @@ TEMPLATE_LIST_TEST_CASE(
             }
 
             SECTION("Heavy iteration") {
-                Set s{Rnd.begin(), Rnd.end()};
+                Set my_set{Rnd.begin(), Rnd.end()};
                 
-                std::vector<Key> a;
-                for (auto v : s) {
-                    a.push_back(v);
+                std::vector<Key> validation;
+                for (auto v : my_set) {
+                    validation.push_back(v);
                 }
 
-                REQUIRE(std::equal(a.begin(), a.end(), s.begin()));
+                REQUIRE_THAT(validation, Catch::Matchers::RangeEquals(my_set));
             }
 
             SECTION("Heavy backward iteration") {
-                Set s{Rnd.begin(), Rnd.end()};
+                Set my_set{Rnd.begin(), Rnd.end()};
 
-                std::vector<Key> a;
-                for (auto it = a.rbegin(), end = a.rend(); it != end; ++it) {
-                    a.push_back(*it);
+                std::vector<Key> validation;
+                for (auto it = my_set.rbegin(), end = my_set.rend(); it != end; ++it) {
+                    validation.push_back(*it);
                 }
 
-                REQUIRE(std::equal(a.begin(), a.end(), s.rbegin()));
+                REQUIRE_THAT(validation | std::views::reverse, Catch::Matchers::RangeEquals(my_set));
+            }
+        }
+
+        SECTION("Set::clear") {
+            Set s{Rnd.begin(), Rnd.end()};
+            s.clear();
+            REQUIRE(s.empty());
+            REQUIRE(s.size() == 0);
+            REQUIRE(s.begin() == s.end());
+        }
+
+        SECTION("Set::insert - Complete C++20 Specification Test Suite") {
+            SECTION("Single value lvalue reference") {
+                Set my_set;
+                Key val = Mid;
+                auto [it, inserted] = my_set.insert(val);
+
+                REQUIRE(inserted == true);
+                REQUIRE(*it == Mid);
+                REQUIRE(my_set.size() == 1);
+
+                // Duplicate rejection
+                auto [it2, inserted2] = my_set.insert(val);
+                REQUIRE(inserted2 == false);
+                REQUIRE(my_set.size() == 1);
+            }
+
+            SECTION("Single value rvalue reference (Move semantics)") {
+                Set my_set;
+                Key v = Mid;
+
+                auto [it, inserted] = my_set.insert(std::move(v));
+
+                REQUIRE(inserted == true);
+                REQUIRE(*it == Mid);
+                REQUIRE(my_set.size() == 1);
+            }
+
+            SECTION("Positional hint insertion (lvalue & rvalue)") {
+                // Hint with lvalue
+                Set my_set;
+                my_set.insert(First);
+                my_set.insert(Last);
+                auto hint = my_set.find(First);
+
+                Key val = Mid;
+                auto it1 = my_set.insert(hint, val);
+                REQUIRE(*it1 == Mid);
+
+                // Hint with rvalue
+                Set my_set2;
+                my_set2.insert(First);
+                my_set2.insert(Last);
+                auto hint2 = my_set2.find(First);
+
+                auto it2 = my_set2.insert(hint2, std::move(val));
+                REQUIRE(*it2 == Mid);
+            }
+
+            SECTION("Range insertion constrained to explicit Key type") {
+                Set my_set;
+                std::vector<Key> exact_range = { First, Mid, Last };
+                my_set.insert(exact_range.begin(), exact_range.end());
+                REQUIRE(my_set.size() == 3);
+                REQUIRE(my_set.contains(First));
+                REQUIRE(my_set.contains(Mid));
+                REQUIRE(my_set.contains(Last));
+            }
+
+            SECTION("Initializer list insertion") {
+                Set my_set;
+                my_set.insert({ First, Mid, Last });
+
+                REQUIRE(my_set.size() == 3);
+
+                std::vector<Key> validation;
+                for (const auto& element : my_set) {
+                    validation.push_back(element);
+                }
+
+                REQUIRE_THAT(validation, Catch::Matchers::Equals(std::vector<Key>{First, Mid, Last}));
+            }
+
+            SECTION("Node Handle insertion (Splicing)") {
+                Set source_set;
+                source_set.insert(Mid);
+
+                // Extract the node out of the source set without allocations/deallocations
+                typename Set::node_type nh = source_set.extract(Mid);
+                REQUIRE(source_set.empty());
+                REQUIRE(!nh.empty());
+
+                // Direct node insertion
+                Set my_set;
+                auto result = my_set.insert(std::move(nh));
+                REQUIRE(result.inserted == true);
+                REQUIRE(*(result.position) == Mid);
+                REQUIRE(result.node.empty()); // The node handle is now empty
+                REQUIRE(my_set.size() == 1);
+
+                // Node insertion with hint
+                source_set.insert(Last);
+                auto nh2 = source_set.extract(Last);
+                auto hint = my_set.begin();
+
+                auto it = my_set.insert(hint, std::move(nh2));
+                REQUIRE(*it == Last);
+                REQUIRE(my_set.size() == 2);
             }
         }
     }
