@@ -1681,14 +1681,12 @@ namespace irc {
     }
 }
 
-namespace std {
-    template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
-    struct hash<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> {
-        inline constexpr std::size_t operator()(const irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>& r) const noexcept {
-            return std::hash<typename irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::internal_array_type>{}(r.as_array());
-        }
-    };
-}
-
 template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
 inline constexpr bool std::ranges::disable_sized_range<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> = !irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::single_bucket;
+
+template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+struct std::hash<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> {
+    inline constexpr std::size_t operator ()(const irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>& r) const noexcept {
+        return std::hash<typename irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::internal_array_type>{}(r.as_array());
+    }
+};
