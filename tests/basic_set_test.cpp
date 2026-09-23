@@ -66,19 +66,20 @@ TEMPLATE_LIST_TEST_CASE(
     using ConstIt = typename Set::const_iterator;
     using DerefType = decltype(*std::declval<It>());
 
-    constexpr auto First = Set::first();
-    constexpr auto Last = Set::last();
+    constexpr Key First = Set::first();
+    constexpr Key Last = Set::last();
     constexpr std::size_t NRange = static_cast<std::size_t>(Set::last() - Set::first() + 1);
-    constexpr auto Mid = static_cast<Key>(Set::first() + NRange / 2);
-    static_assert(First != Last && First != Mid && Last != Mid, "Check boundaries");
+    constexpr Key Mid = static_cast<Key>(Set::first() + NRange / 2);
+    STATIC_REQUIRE((First != Last && First != Mid && Last != Mid));
     
-    constexpr auto First1 = static_cast<Key>(Set::first() + 1);
-    constexpr auto Last1 = static_cast<Key>(Set::last() - 1);
-    static_assert(First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid, "Check correctness");
+    const auto Offset1 = GENERATE(take(1, random(1, 8)));
+    const Key First1 = static_cast<Key>(Set::first() + Offset1);
+    const Key Last1 = static_cast<Key>(Set::last() - Offset1);
+    REQUIRE((First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid));
 
     const std::size_t NRnd = NRange - NRange / 4;
     const auto Rnd = GENERATE(chunk(NRnd, take(NRnd, random(First, Last)))) | std::views::all;
-    assert(std::ranges::size(Rnd) == NRnd);
+    REQUIRE(std::ranges::size(Rnd) == NRnd);
     
     const std::set<Key> RndUnique{Rnd.begin(), Rnd.end()};
     const std::size_t NRndUnique = RndUnique.size();

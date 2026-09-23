@@ -81,7 +81,7 @@ namespace irc::detail {
         consteval static std::pair<_Enum, _Enum> range() noexcept {
             constexpr _Enum first = first();
             constexpr _Enum last = last();
-            static_assert(_is_ordered(first, last), "Key enumerators result in wrong range order");
+            static_assert(_is_ordered(first, last), "key enumerators result in wrong enum's range (first > last)");
             return {first, last};
         }
     };
