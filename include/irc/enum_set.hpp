@@ -11,8 +11,7 @@ namespace irc {
 
     template <typename _Enum>
     consteval std::pair<_Enum, _Enum> enum_range() noexcept {
-        using _Tr = detail::_enum_traits<_Enum>;
-        return {_Tr::first(), _Tr::last()};
+        return detail::_enum_traits<_Enum>::range();
     }
 
     template <

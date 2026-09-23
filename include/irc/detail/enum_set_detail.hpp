@@ -5,6 +5,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 namespace irc::detail {
 
@@ -42,6 +43,10 @@ namespace irc::detail {
             return static_cast<_Enum>(static_cast<std::underlying_type_t<_Enum>>(v) - 1);
         }
 
+        consteval static bool _is_ordered(_Enum first, _Enum last) noexcept {
+            return static_cast<std::underlying_type_t<_Enum>>(first) <= static_cast<std::underlying_type_t<_Enum>>(last);
+        }
+
     public:
         consteval static _Enum first() noexcept {
             if constexpr (has_first) {
@@ -71,6 +76,13 @@ namespace irc::detail {
             } else {
                 return _prev(_Enum{});
             }
+        }
+
+        consteval static std::pair<_Enum, _Enum> range() noexcept {
+            constexpr _Enum first = first();
+            constexpr _Enum last = last();
+            static_assert(_is_ordered(first, last), "Key enumerators result in wrong range order");
+            return {first, last};
         }
     };
 }
