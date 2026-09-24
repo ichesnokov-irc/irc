@@ -104,7 +104,7 @@ namespace irc {
         using arr_cit = typename arr_t::const_iterator;
 
         constexpr static auto _range = std::views::iota(_Ti{}, _Range)
-            | std::views::transform([](_Ti v) -> _Ty { return static_cast<_Ty>(v + _Ufirst); });
+            | std::views::transform([](_Ti v) constexpr noexcept -> _Ty {return static_cast<_Ty>(v + _Ufirst);});
 
         class _iterator {
             constexpr static _iterator beg(arr_cit a) noexcept {

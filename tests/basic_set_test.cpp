@@ -72,9 +72,9 @@ TEMPLATE_LIST_TEST_CASE(
     constexpr Key Mid = static_cast<Key>(Set::first() + NRange / 2);
     STATIC_REQUIRE((First != Last && First != Mid && Last != Mid));
     
-    const auto Offset1 = GENERATE(take(1, random(1, 8)));
-    const Key First1 = static_cast<Key>(Set::first() + Offset1);
-    const Key Last1 = static_cast<Key>(Set::last() - Offset1);
+    const auto Rnd1 = GENERATE(take(1, random(1, 8)));
+    const Key First1 = static_cast<Key>(Set::first() + Rnd1);
+    const Key Last1 = static_cast<Key>(Set::last() - Rnd1);
     REQUIRE((First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid));
 
     const std::size_t NRnd = NRange - NRange / 4;
@@ -760,6 +760,53 @@ TEMPLATE_LIST_TEST_CASE(
                 // Edge-case standard compliance: Merging a container into itself should be a no-op
                 target.merge(target);
                 REQUIRE_THAT(target, Catch::Matchers::RangeEquals(std::vector<Key>{First, Last}));
+            }
+        }
+
+        SECTION("Set lookup methods: Set::find, Set::contains, and Set::count") {
+            // Create an arbitrary set containing only some numbers
+            std::vector<Key> init_range;
+            for (Key v = First; v != Last; ++v) {
+                if ((v % 17) == 0) {
+                    init_range.push_back(v);
+                }
+            }
+            const Set my_set(init_range.begin(), init_range.end());
+
+            // We expand it slightly past First and Last to cover out-of-bounds testing, if possible
+            std::vector<Key> test_elements(init_range.begin(), init_range.end());
+            for (Key v = First, pv = v - Rnd1; pv < v; ++pv)
+                test_elements.push_back(pv);
+            for (Key nv = Last + Rnd1, v = Last; v < nv; --nv)
+                test_elements.push_back(nv);
+
+            // Inject each value from Rng into the test via Catch2 Generators
+            const auto test_val = GENERATE_REF(from_range(test_elements));
+
+            // Determine expected presence mathematically for validation
+            const bool should_exist = (test_val >= First && test_val <= Last) && ((test_val % 17) == 0);
+
+            DYNAMIC_SECTION("Evaluating value: " << static_cast<std::intmax_t>(test_val)) {
+
+                SECTION("contains() returns true only if the element exists") {
+                    REQUIRE(my_set.contains(test_val) == should_exist);
+                }
+
+                SECTION("count() returns 1 if element exists, 0 otherwise") {
+                    const std::size_t expected_count = should_exist ? 1 : 0;
+                    REQUIRE(my_set.count(test_val) == expected_count);
+                }
+
+                SECTION("find() returns valid iterator on success, end() iterator on failure") {
+                    auto it = my_set.find(test_val);
+
+                    if (should_exist) {
+                        REQUIRE(it != my_set.end());
+                        REQUIRE(*it == test_val);
+                    } else {
+                        REQUIRE(it == my_set.end());
+                    }
+                }
             }
         }
     }
