@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Full license text: https://opensource.org/license/mit
 
-#include <irc/irc.hpp>
+#include <catch2/catch_session.hpp>
 
-int main() {
-    return 0;
+int main(int argc, char* argv[]) {
+    return Catch::Session().run(argc, argv);
 }

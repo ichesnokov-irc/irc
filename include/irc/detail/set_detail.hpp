@@ -11,17 +11,17 @@ namespace irc::detail {
     template <auto _R1, auto _R2>
     struct _deduce_range {
         static_assert(std::is_same_v<decltype(_R1), decltype(_R2)>, "First and last range values must be of the same type");
-        using me = _deduce_range;
-        using type = decltype(_R1);
-        constexpr static type first = _R1;
-        constexpr static type last = _R2;
+        using type = _deduce_range;
+        using item_type = decltype(_R1);
+        constexpr static item_type first = _R1;
+        constexpr static item_type last = _R2;
     };
 
     template <auto _R1>
     struct _deduce_range<_R1, nullptr> {
-        using me = _deduce_range<decltype(_R1){}, _R1>;
+        using type = _deduce_range<decltype(_R1){}, _R1>;
     };
 
     template <auto _R1, auto _R2>
-    using _deduce_range_t = typename _deduce_range<_R1, _R2>::me;
+    using _deduce_range_t = typename _deduce_range<_R1, _R2>::type;
 }

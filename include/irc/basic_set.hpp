@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "basic_set_detail.hpp"
+#include "detail/basic_set_detail.hpp"
 #include <cassert>
 #include <algorithm>
 #include <numeric>
@@ -21,6 +21,9 @@
 #include <ranges>
 
 namespace irc {
+
+    template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+    class basic_set;
 
     template <typename _Ty>
     class set_nh {
@@ -39,7 +42,7 @@ namespace irc {
             return v.has_value();
         }
 
-        constexpr _Ty& value() const {
+        constexpr value_type& value() const {
             assert(v.has_value());
             return v.value();
         }
@@ -50,6 +53,9 @@ namespace irc {
 
     private:
         mutable std::optional<_Ty> v;
+        
+        template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+        friend class basic_set;
     };
 
     template <
@@ -98,11 +104,11 @@ namespace irc {
         using arr_cit = typename arr_t::const_iterator;
 
         constexpr static auto _range = std::views::iota(_Ti{}, _Range)
-            | std::views::transform([](_Ti v) -> _Ty { return static_cast<_Ty>(v + _Ufirst); });
+            | std::views::transform([](_Ti v) constexpr noexcept -> _Ty {return static_cast<_Ty>(v + _Ufirst);});
 
         class _iterator {
             constexpr static _iterator beg(arr_cit a) noexcept {
-                if constexpr (_NBkt == 1) {
+                if constexpr (single_bucket) {
                     return { static_cast<_Ti>(std::countr_zero(*a)), a };
                 } else {
                     _Ti v = 0;
@@ -127,7 +133,7 @@ namespace irc {
 
             constexpr void next() noexcept {
                 assert(v < _IEnd);
-                if constexpr (_NBkt == 1) {
+                if constexpr (single_bucket) {
                     const _Sty b = (*p) & (_None << v);
                     v = static_cast<_Ti>(std::countr_zero(b));
                 } else {
@@ -149,7 +155,7 @@ namespace irc {
 
             constexpr void prev() noexcept {
                 assert(v > 0 && v <= _IEnd);
-                if constexpr (_NBkt == 1) {
+                if constexpr (single_bucket) {
                     const _Sty b = (*p) & (_Every >> (_IEnd - v));
                     assert(b); // Iterator underflow
                     v = static_cast<_Ti>(std::countl_zero(b)) ^ _Imask;
@@ -182,9 +188,10 @@ namespace irc {
             arr_cit p;
 
         public:
+            using iterator_concept = std::bidirectional_iterator_tag;
             using iterator_category = std::bidirectional_iterator_tag;
             using difference_type = std::ptrdiff_t;
-            using value_type = _Ty;
+            using value_type = const _Ty;
             using pointer = const _Ty*;
             using reference = const _Ty&;
 
@@ -193,7 +200,7 @@ namespace irc {
             [[nodiscard]] constexpr bool operator ==(const _iterator& other) const noexcept { return v == other.v; }
             [[nodiscard]] constexpr std::strong_ordering operator <=>(const _iterator& other) const noexcept { return v <=> other.v; }
 
-            [[nodiscard]] constexpr _Ty operator *() const noexcept {
+            [[nodiscard]] constexpr value_type operator *() const noexcept {
                 assert(v <= _ILast); // Past-the-end or corrupted iterator
                 return key();
             }
@@ -220,7 +227,7 @@ namespace irc {
                 return cpy;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         class _local_iterator {
@@ -256,6 +263,7 @@ namespace irc {
             _iterator it;
 
         public:
+            using iterator_concept = std::forward_iterator_tag;
             using iterator_category = std::forward_iterator_tag;
             using difference_type = _iterator::difference_type;
             using value_type = _iterator::value_type;
@@ -267,7 +275,7 @@ namespace irc {
             [[nodiscard]] constexpr bool operator ==(const _local_iterator& other) const noexcept { return it == other.it; }
             [[nodiscard]] constexpr std::strong_ordering operator <=>(const _local_iterator& other) const noexcept { return it <=> other.it; }
 
-            [[nodiscard]] constexpr _Ty operator *() const noexcept {
+            [[nodiscard]] constexpr const _Ty operator *() const noexcept {
                 return *it;
             }
 
@@ -286,7 +294,7 @@ namespace irc {
                 return cpy;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         template <typename _ItA>
@@ -305,11 +313,11 @@ namespace irc {
             constexpr static _ref_base at_pos(_Ti v, _ItA a) noexcept {
                 assert(v < _Range);
                 if constexpr (_NBkt == 1) {
-                    return _ref_base{_One << v, a};
-                } else if constexpr (std::bit_width(_IEnd) < sizeof(int) * _Bbs) {
+                    return _ref_base{static_cast<_Sty>(_One << v), a};
+                } else if constexpr (static_cast<std::size_t>(std::bit_width(_IEnd)) < sizeof(int) * _Bbs) {
                     return _ref_base{std::rotl(_One, static_cast<int>(v)), std::next(a, static_cast<difference_type>(v >> _Ibits))};
                 } else {
-                    return _ref_base{_One << (v & _Imask), std::next(a, v >> _Ibits)};
+                    return _ref_base{static_cast<_Sty>(_One << (v & _Imask)), std::next(a, v >> _Ibits)};
                 }
             }
 
@@ -330,7 +338,7 @@ namespace irc {
                 return *p & i;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         class _reference : public _ref_base<arr_it> {
@@ -387,7 +395,7 @@ namespace irc {
                 return v1 != v2;
             }
 
-            friend basic_set;
+            friend class basic_set;
         };
 
         struct _insert_return_type {
@@ -399,7 +407,9 @@ namespace irc {
         arr_t a;
 
     public:
+        constexpr static bool single_bucket = _NBkt == 1;
         using internal_array_type = arr_t;
+
         using key_type = _Ty;
         using value_type = _Ty;
         using size_type = std::size_t;
@@ -414,7 +424,7 @@ namespace irc {
         using const_iterator = iterator;
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-        using local_iterator = std::conditional_t<_NBkt == 1, _iterator, _local_iterator>;
+        using local_iterator = std::conditional_t<single_bucket, _iterator, _local_iterator>;
         using const_local_iterator = local_iterator;
         using node_type = set_nh<_Ty>;
         using reference = _reference;
@@ -423,7 +433,10 @@ namespace irc {
 
         constexpr basic_set() noexcept : a{} {}
         constexpr basic_set(const basic_set&) noexcept = default;
-        constexpr basic_set(basic_set&&) noexcept = default;
+        
+        constexpr basic_set(basic_set&& src) noexcept : a{std::move(src.a)} {
+            src.clear();
+        }
 
         template <typename _InIt>
         constexpr basic_set(_InIt first, _InIt last) : a{} {
@@ -435,7 +448,12 @@ namespace irc {
         }
 
         constexpr basic_set& operator =(const basic_set&) noexcept = default;
-        constexpr basic_set& operator =(basic_set&&) noexcept = default;
+        
+        constexpr basic_set& operator =(basic_set&& src) noexcept {
+            a = std::move(src.a);
+            src.clear();
+            return *this;
+        }
 
         constexpr basic_set& operator =(std::initializer_list<value_type> init) noexcept {
             clear();
@@ -492,12 +510,20 @@ namespace irc {
         }
 
         [[nodiscard]] constexpr bool empty() const noexcept {
-            return std::none_of(a.cbegin(), a.cend(), [](_Sty b) { return b; });
+            if constexpr (single_bucket) {
+                return !a[0];
+            } else {
+                return std::none_of(a.cbegin(), a.cend(), [](_Sty b) { return b; });
+            }
         }
 
         [[nodiscard]] constexpr size_type size() const noexcept {
-            return std::transform_reduce(a.cbegin(), a.cend(), size_type{}, std::plus<>{},
-                [](_Sty b) { return std::popcount(b); });
+            if constexpr (single_bucket) {
+                return std::popcount(a[0]);
+            } else {
+                return std::transform_reduce(a.cbegin(), a.cend(), size_type{}, std::plus<>{},
+                    [](_Sty b) { return std::popcount(b); });
+            }
         }
 
         [[nodiscard]] constexpr size_type max_size() const noexcept {
@@ -505,7 +531,11 @@ namespace irc {
         }
 
         constexpr void clear() noexcept {
-            a.fill(0);
+            if constexpr (single_bucket) {
+                a[0] = 0;
+            } else {
+                a.fill(0);
+            }
         }
 
         constexpr std::pair<iterator, bool> insert(const value_type& value) noexcept {
@@ -519,7 +549,8 @@ namespace irc {
             return insert(static_cast<value_type&>(value));
         }
 
-        constexpr iterator insert(const_iterator, const value_type& value) noexcept {
+        constexpr iterator insert(const_iterator pos, const value_type& value) noexcept {
+            ((void)pos);
             assert(_is_valid(pos));
             assert(_in_range(value));
             reference ref = _ref(value);
@@ -545,6 +576,7 @@ namespace irc {
                 return {_end(), false, {}};
             }
             const auto [it, inserted] = insert(nh.value());
+            nh.v.reset();
             return {it, inserted, nh};
         }
 
@@ -606,17 +638,19 @@ namespace irc {
         }
 
         constexpr void merge(basic_set& src) noexcept {
+            if (&src == this) {
+                return;
+            }
             std::transform(a.begin(), a.end(), src.a.begin(), a.begin(), [](_Sty b1, _Sty& b2) {
-                const _Sty m = b1 & b2;
+                const _Sty m = b1;
                 b1 |= b2;
-                b2 &= ~m;
+                b2 &= m;
                 return b1;
             });
         }
 
         constexpr void merge(basic_set&& src) noexcept {
-            // we do not modify the src because its assumed to be moved in
-            std::transform(a.begin(), a.end(), src.begin(), a.begin(), std::bit_or{});
+            merge(static_cast<basic_set&>(src));
         }
 
         [[nodiscard]] constexpr const_iterator find(const key_type& key) const noexcept {
@@ -658,7 +692,7 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr size_type count(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            return contains<K>(x);
+            return template contains<K>(x);
         }
 
         [[nodiscard]] constexpr std::pair<const_iterator, const_iterator> equal_range(const key_type& key) const noexcept {
@@ -801,15 +835,8 @@ namespace irc {
             return _end(i);
         }
 
-        constexpr hasher hash_function() const noexcept {
-            return hasher{};
-        }
-
         constexpr key_equal key_eq() const noexcept {
             return key_equal{};
-        }
-
-        constexpr void reshash() noexcept {
         }
 
         constexpr void reserve(size_type) noexcept {
@@ -847,7 +874,7 @@ namespace irc {
         constexpr explicit basic_set(unsigned long long val) noexcept : a{} {
             if (sizeof(_Sty) >= sizeof(unsigned long long) || std::bit_width(val) <= _BktBits) {
                 _Sty v = static_cast<_Sty>(val);
-                if constexpr (_Bmask != _Every && _NBkt == 1) {
+                if constexpr (_Bmask != _Every && single_bucket) {
                     v &= _Bmask;
                 }
                 a[0] = v;
@@ -1404,7 +1431,7 @@ namespace irc {
         }
 
         constexpr iterator _end() const noexcept {
-            if constexpr (_NBkt == 1) {
+            if constexpr (single_bucket) {
                 return iterator::end(a.cbegin());
             } else {
                 return iterator::end(a.cend());
@@ -1413,7 +1440,7 @@ namespace irc {
 
         constexpr local_iterator _beg(size_type i) const noexcept {
             assert(i < bucket_count());
-            if constexpr (_NBkt == 1) {
+            if constexpr (single_bucket) {
                 return _beg();
             } else {
                 return local_iterator::beg(i, a.cbegin());
@@ -1422,7 +1449,7 @@ namespace irc {
 
         constexpr local_iterator _end(size_type i) const noexcept {
             assert(i < bucket_count());
-            if constexpr (_NBkt == 1) {
+            if constexpr (single_bucket) {
                 return _end();
             } else {
                 return local_iterator::end(i, a.cbegin());
@@ -1496,7 +1523,7 @@ namespace irc {
 
         constexpr arr_it _shl(size_type pos, arr_it dst) const noexcept {
             assert(pos < _Range);
-            if constexpr (_NBkt == 1) {
+            if constexpr (single_bucket) {
                 *(--dst) = (pos >= _BktBits ? 0 : a[0] << pos);
             } else {
                 const size_type shl_by = pos >> _Ibits;
@@ -1519,7 +1546,7 @@ namespace irc {
 
         constexpr arr_it _shr(size_type pos, arr_it dst) const noexcept {
             assert(pos < _Range);
-            if constexpr (_NBkt == 1) {
+            if constexpr (single_bucket) {
                 *dst++ = (pos >= _BktBits ? 0 : a[0] >> pos);
             } else {
                 const size_type shr_by = pos >> _Ibits;
@@ -1654,11 +1681,12 @@ namespace irc {
     }
 }
 
-namespace std {
-    template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
-    struct hash<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> {
-        inline constexpr std::size_t operator()(const irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>& r) const noexcept {
-            return std::hash<typename irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::internal_array_type>{}(r.as_array());
-        }
-    };
-}
+template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+inline constexpr bool std::ranges::disable_sized_range<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> = !irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::single_bucket;
+
+template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
+struct std::hash<irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>> {
+    inline constexpr std::size_t operator ()(const irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>& r) const noexcept {
+        return std::hash<typename irc::basic_set<_Ty, _Rfirst, _Rlast, _Sty>::internal_array_type>{}(r.as_array());
+    }
+};

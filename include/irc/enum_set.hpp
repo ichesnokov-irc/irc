@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include "enum_set_detail.hpp"
+#include "detail/enum_set_detail.hpp"
 #include "basic_set.hpp"
 
 namespace irc {
 
     template <typename _Enum>
     consteval std::pair<_Enum, _Enum> enum_range() noexcept {
-        using _Tr = detail::_enum_traits<_Enum>;
-        return {_Tr::first(), _Tr::last()};
+        return detail::_enum_traits<_Enum>::range();
     }
 
     template <
