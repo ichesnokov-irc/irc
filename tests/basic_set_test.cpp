@@ -72,7 +72,7 @@ TEMPLATE_LIST_TEST_CASE(
     constexpr Key Mid = static_cast<Key>(Set::first() + NRange / 2);
     STATIC_REQUIRE((First != Last && First != Mid && Last != Mid));
     
-    const Key Rnd1 = static_cast<Key>(GENERATE(take(1, random(3, 8))));
+    const Key Rnd1 = static_cast<Key>(GENERATE(take(1, random(1, 8))));
     const Key First1 = static_cast<Key>(Set::first() + Rnd1);
     const Key Last1 = static_cast<Key>(Set::last() - Rnd1);
     REQUIRE((First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid));
@@ -828,6 +828,125 @@ TEMPLATE_LIST_TEST_CASE(
                         REQUIRE(it == my_set.end());
                     }
                 }
+            }
+        }
+
+        SECTION("Set::erase - All overloads and variants (C++20)") {
+            SECTION("Position iterator overload: iterator erase(const_iterator pos)") {
+                Set s{First, First1, Mid, Last1, Last};
+
+                SECTION("Erase from the middle") {
+                    auto it = s.find(Mid);
+                    REQUIRE(it != s.end());
+
+                    auto next_it = s.erase(it);
+
+                    // C++11/20 compliance: returns iterator following the removed element
+                    REQUIRE(next_it != s.end());
+                    REQUIRE(*next_it == Last1);
+                    REQUIRE(s.size() == 4);
+                    REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, First1, Last1, Last}));
+                }
+
+                SECTION("Erase the last element") {
+                    auto it = s.find(Last);
+                    REQUIRE(it != s.end());
+
+                    auto next_it = s.erase(it);
+
+                    // Returns end() if the removed element was the last one
+                    REQUIRE(next_it == s.end());
+                    REQUIRE(s.size() == 4);
+                    REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, First1, Mid, Last1}));
+                }
+
+                SECTION("Erase the only element") {
+                    Set single{Mid};
+                    auto next_it = single.erase(single.begin());
+
+                    REQUIRE(next_it == single.end());
+                    REQUIRE(single.empty());
+                }
+            }
+
+            SECTION("Range iterator overload: iterator erase(const_iterator first, const_iterator last)") {
+                SECTION("Erase a sub-range from the middle") {
+                    Set s{First, First1, Mid, Last1, Last};
+                    auto first = s.find(First1);
+                    auto last = s.find(Last1); // points to Last1, so First1 and Mid will be erased
+
+                    auto next_it = s.erase(first, last);
+
+                    REQUIRE(*next_it == Last1);
+                    REQUIRE(s.size() == 3);
+                    REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, Last1, Last}));
+                }
+
+                SECTION("Erase all elements via range") {
+                    Set s{First, First1, Mid, Last1, Last};
+                    auto next_it = s.erase(s.begin(), s.end());
+
+                    REQUIRE(next_it == s.end());
+                    REQUIRE(s.empty());
+                }
+
+                SECTION("Erase an empty range (first == last)") {
+                    Set s{First, First1, Mid, Last1, Last};
+                    auto it = s.find(Mid);
+
+                    auto next_it = s.erase(it, it);
+
+                    REQUIRE(*next_it == Mid);
+                    REQUIRE(s.size() == 5);
+                }
+            }
+
+            SECTION("Key overload: size_type erase(const key_type& key)") {
+                Set s{First, Mid, Last};
+
+                SECTION("Erase existing key") {
+                    auto count = s.erase(Mid);
+
+                    REQUIRE(count == 1);
+                    REQUIRE(s.size() == 2);
+                    REQUIRE(s.find(Mid) == s.end());
+                    REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, Last}));
+                }
+
+                SECTION("Erase non-existing key") {
+                    auto count = s.erase(Last1);
+
+                    REQUIRE(count == 0);
+                    REQUIRE(s.size() == 3);
+                }
+
+                SECTION("Erase out-of-range key") {
+                    constexpr Key Out = static_cast<Key>(Last + 1);
+                    if constexpr (Last < Out) {
+                        auto count = s.erase(Out);
+
+                        REQUIRE(count == 0);
+                        REQUIRE(s.size() == 3);
+                    }
+                }
+            }
+        }
+
+        SECTION("Set::erase() - Iterator validity and edge cases") {
+            Set s{First, First1, Mid, Last1, Last};
+
+            SECTION("Iterating and erasing safely (idiomatic pattern)") {
+                auto it = s.begin();
+                while (it != s.end()) {
+                    if (*it == First1 || *it == Last1) {
+                        it = s.erase(it); // returns the valid next iterator
+                    } else {
+                        ++it;
+                    }
+                }
+
+                REQUIRE(s.size() == 3);
+                REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
             }
         }
     }

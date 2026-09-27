@@ -636,6 +636,12 @@ namespace irc {
             return _ref(key).test_and_reset();
         }
 
+        template <typename K>
+        constexpr size_type erase(const K& x) noexcept(_is_nothrow_cmp<K>()) {
+            iterator it = find<K>(x);
+            return erase(it.key());
+        }
+
         constexpr void swap(basic_set& other) noexcept {
             a.swap(other.a);
         }
@@ -1340,7 +1346,7 @@ namespace irc {
                     std::fill(std::next(r1.p), a.end(), _Every);
                 } else {
                     *r1.p &= m;
-                    std::fill(std::next(r1.p), a.end(), 0);
+                    std::fill(std::next(r1.p), a.end(), _Sty{});
                 }
             } else {
                 const reference r2 = _ref(static_cast<_Ty>(u2));
@@ -1360,7 +1366,7 @@ namespace irc {
                     } else {
                         *r1.p &= m1;
                         *r2.p &= ~m2;
-                        std::fill(std::next(r1.p), r2.p, 0);
+                        std::fill(std::next(r1.p), r2.p, _Sty{});
                     }
                 }
             }
