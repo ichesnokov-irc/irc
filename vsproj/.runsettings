@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <Catch2Adapter disabled="false">
+    <Catch2Version>3</Catch2Version>
+    <Logging>debug</Logging>
+    <FilenameFilter>irc_tests</FilenameFilter>
+    <WorkingDirectoryRoot>Executable</WorkingDirectoryRoot>
+	<DiscoverCommandLine>--verbosity high --list-tests *</DiscoverCommandLine>
+    <IncludeMode>RunSettings</IncludeMode>
+    <ExecutionMode>TestList</ExecutionMode>
+  </Catch2Adapter>
+</RunSettings>
