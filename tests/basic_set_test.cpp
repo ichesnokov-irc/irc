@@ -592,33 +592,47 @@ TEMPLATE_LIST_TEST_CASE(
             }
 
             SECTION("Node Handle insertion (Splicing)") {
-                Set source_set;
-                source_set.insert(Mid);
+                Set set1;
+                set1.insert(Mid);
+
+                Set set2;
+                set2.insert(Mid);
 
                 // Extract the node out of the source set without allocations/deallocations
-                typename Set::node_type nh = source_set.extract(Mid);
-                REQUIRE(source_set.empty());
-                REQUIRE(!nh.empty());
+                typename Set::node_type nh1 = set1.extract(Mid);
+                REQUIRE(set1.empty());
+                REQUIRE(!nh1.empty());
 
                 // Direct node insertion
                 Set my_set;
-                auto result = my_set.insert(std::move(nh));
-                REQUIRE(result.inserted);
-                REQUIRE(*(result.position) == Mid);
-                REQUIRE(result.node.empty()); // The node handle is now empty
+                auto result1 = my_set.insert(std::move(nh1));
+                REQUIRE(result1.inserted);
+                REQUIRE(*(result1.position) == Mid);
+                REQUIRE(result1.node.empty()); // The node handle is now empty
                 REQUIRE(my_set.size() == 1);
 
+                // Direct mode insertion with already existent value
+                typename Set::node_type nh2 = set2.extract(Mid);
+                REQUIRE(nh2); // Conversion to bool
+                
+                auto result2 = my_set.insert(std::move(nh2));
+                REQUIRE(nh2.empty()); // Passed node is cleared anyway
+                REQUIRE(!result2.inserted);
+                REQUIRE(*(result2.position) == Mid); // Iterator points to existent element
+                REQUIRE(!result2.node.empty()); // New node handle is still non-empty
+                REQUIRE(my_set.size() == 1); // Size is not changed
+
                 // Empty node insertion
-                auto result_empty = my_set.insert(std::move(nh));
+                auto result_empty = my_set.insert(std::move(nh1));
                 REQUIRE(!result_empty.inserted);
                 REQUIRE(result_empty.position == my_set.end());
 
                 // Node insertion with hint
-                source_set.insert(Last);
-                auto nh2 = source_set.extract(Last);
+                set1.insert(Last);
+                auto nh3 = set1.extract(Last);
                 auto hint = my_set.begin();
 
-                auto it = my_set.insert(hint, std::move(nh2));
+                auto it = my_set.insert(hint, std::move(nh3));
                 REQUIRE(*it == Last);
                 REQUIRE(my_set.size() == 2);
             }
