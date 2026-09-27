@@ -7,7 +7,7 @@ include(FetchContent)
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2
-    GIT_TAG        v3.5.2
+    GIT_TAG        v3.7.1
 )
 FetchContent_MakeAvailable(Catch2)
 
@@ -28,7 +28,7 @@ set_target_properties(irc_tests PROPERTIES
 target_link_libraries(irc_tests PRIVATE Catch2::Catch2)
 
 if(MSVC)
-    target_compile_options(irc_tests PRIVATE /W4 /WX)
+    target_compile_options(irc_tests PRIVATE /W4 /WX /bigobj)
 else()
     target_compile_options(irc_tests PRIVATE -Wall -Wextra -Werror -Wpedantic)
 endif()

@@ -22,9 +22,6 @@
 
 namespace irc {
 
-    template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
-    class basic_set;
-
     template <typename _Ty>
     class set_nh {
     public:
@@ -32,7 +29,19 @@ namespace irc {
 
         constexpr set_nh() noexcept : v{} {}
         constexpr set_nh(_Ty v) noexcept : v{v} {}
-        constexpr set_nh& operator =(const set_nh&) = default;
+        
+        constexpr set_nh(const set_nh&) = delete;
+        constexpr set_nh& operator =(const set_nh&) = delete;
+
+        constexpr set_nh(set_nh&& src) noexcept : v{std::move(src.v)} {
+            src.v.reset();
+        }
+
+        constexpr set_nh& operator =(set_nh&& src) noexcept {
+            v = std::move(src.v);
+            src.v.reset();
+            return *this;
+        }
 
         constexpr bool empty() const noexcept {
             return !v.has_value();
@@ -42,7 +51,12 @@ namespace irc {
             return v.has_value();
         }
 
-        constexpr value_type& value() const {
+        constexpr const value_type& value() const noexcept {
+            assert(v.has_value());
+            return v.value();
+        }
+
+        constexpr value_type& value() noexcept {
             assert(v.has_value());
             return v.value();
         }
@@ -52,10 +66,7 @@ namespace irc {
         }
 
     private:
-        mutable std::optional<_Ty> v;
-        
-        template <typename _Ty, _Ty _Rfirst, _Ty _Rlast, typename _Sty>
-        friend class basic_set;
+        std::optional<_Ty> v;
     };
 
     template <
@@ -94,8 +105,8 @@ namespace irc {
         constexpr static _Ti _ILast = _Range - 1;
         constexpr static unsigned int _Ibits = std::bit_width(_Imask);
 
-        constexpr static _Sty _Every = ~_Sty{};
-        constexpr static _Sty _One = 1u;
+        constexpr static _Sty _Every = static_cast<_Sty>(-1);
+        constexpr static _Sty _One = 1;
         constexpr static _Sty _None = _Every ^ _One;
         constexpr static _Sty _Bmask = _Range % _BktBits ? static_cast<_Sty>(~(_Every << (_Range % _BktBits))) : _Every;
 
@@ -104,7 +115,7 @@ namespace irc {
         using arr_cit = typename arr_t::const_iterator;
 
         constexpr static auto _range = std::views::iota(_Ti{}, _Range)
-            | std::views::transform([](_Ti v) constexpr noexcept -> _Ty {return static_cast<_Ty>(v + _Ufirst);});
+            | std::views::transform([](_Ti v) constexpr noexcept -> _Ty { return static_cast<_Ty>(v + _Ufirst); });
 
         class _iterator {
             constexpr static _iterator beg(arr_cit a) noexcept {
@@ -113,15 +124,14 @@ namespace irc {
                 } else {
                     _Ti v = 0;
                     arr_cit p = a;
-                    _Sty b;
-                    while (!(b = *p)) {
+                    while (!*p) {
                         v += _Inext;
                         ++p;
                         if (v == _IEnd) {
                             return { _IEnd, p };
                         }
                     }
-                    v |= static_cast<_Ti>(std::countr_zero(b));
+                    v |= static_cast<_Ti>(std::countr_zero(*p));
                     assert(v < _IEnd);
                     return { v, p };
                 }
@@ -576,15 +586,21 @@ namespace irc {
                 return {_end(), false, {}};
             }
             const auto [it, inserted] = insert(nh.value());
-            nh.v.reset();
-            return {it, inserted, nh};
+            if (inserted) {
+                nh = {};
+            }
+            return {it, inserted, std::move(nh)};
         }
 
-        constexpr iterator insert(const_iterator pos, node_type&& nh) noexcept {
+        constexpr iterator insert(const_iterator, node_type&& nh) noexcept {
             if (nh.empty()) [[unlikely]] {
                 return _end();
             }
-            return insert(pos, nh.value());
+            const auto [it, inserted] = insert(nh.value());
+            if (inserted) {
+                nh = {};
+            }
+            return it;
         }
 
         template <typename... Args>
@@ -692,7 +708,7 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr size_type count(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            return template contains<K>(x);
+            return contains<K>(x);
         }
 
         [[nodiscard]] constexpr std::pair<const_iterator, const_iterator> equal_range(const key_type& key) const noexcept {
@@ -1499,9 +1515,9 @@ namespace irc {
 
         template <typename _InIt>
         constexpr void _set_from(_InIt first, const _InIt last) noexcept {
-            std::for_each<_InIt>(first, last, [this](const auto& v) {
+            std::for_each<_InIt>(first, last, [this](const auto& v) noexcept {
                 assert(_in_range(v));
-                _ref(v).set();
+                this->_ref(v).set();
             });
         }
 

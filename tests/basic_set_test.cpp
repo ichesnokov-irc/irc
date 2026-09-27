@@ -72,7 +72,7 @@ TEMPLATE_LIST_TEST_CASE(
     constexpr Key Mid = static_cast<Key>(Set::first() + NRange / 2);
     STATIC_REQUIRE((First != Last && First != Mid && Last != Mid));
     
-    const auto Rnd1 = GENERATE(take(1, random(1, 8)));
+    const Key Rnd1 = static_cast<Key>(GENERATE(take(1, random(3, 8))));
     const Key First1 = static_cast<Key>(Set::first() + Rnd1);
     const Key Last1 = static_cast<Key>(Set::last() - Rnd1);
     REQUIRE((First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid));
@@ -673,7 +673,7 @@ TEMPLATE_LIST_TEST_CASE(
                 REQUIRE(my_set.size() == 3);
 
                 // Validate final sequential alignment
-                std::vector<int> expected = { First, Mid, Last };
+                std::vector<Key> expected = { First, Mid, Last };
                 REQUIRE_THAT(my_set, Catch::Matchers::RangeEquals(expected));
             }
         }
@@ -764,10 +764,10 @@ TEMPLATE_LIST_TEST_CASE(
         }
 
         SECTION("Set lookup methods: Set::find, Set::contains, and Set::count") {
-            // Create an arbitrary set containing only some numbers
+            // Create an arbitrary set containing only some elements
             std::vector<Key> init_range;
             for (Key v = First; v != Last; ++v) {
-                if ((v % 17) == 0) {
+                if (((v % 17) == 0) && !((v % 19) == 0)) {
                     init_range.push_back(v);
                 }
             }
@@ -780,11 +780,18 @@ TEMPLATE_LIST_TEST_CASE(
             for (Key nv = Last + Rnd1, v = Last; v < nv; --nv)
                 test_elements.push_back(nv);
 
+            // Add some other nonexistent elements
+            for (Key v = First; v != Last; ++v) {
+                if (!((v % 17) == 0) && ((v % 19) == 0)) {
+                    test_elements.push_back(v);
+                }
+            }
+
             // Inject each value from Rng into the test via Catch2 Generators
             const auto test_val = GENERATE_REF(from_range(test_elements));
 
             // Determine expected presence mathematically for validation
-            const bool should_exist = (test_val >= First && test_val <= Last) && ((test_val % 17) == 0);
+            const bool should_exist = (test_val >= First && test_val <= Last) && ((test_val % 17) == 0) && !((test_val % 19) == 0);
 
             DYNAMIC_SECTION("Evaluating value: " << static_cast<std::intmax_t>(test_val)) {
 
