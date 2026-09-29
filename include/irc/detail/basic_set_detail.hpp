@@ -9,6 +9,7 @@
 #include <limits>
 #include <type_traits>
 #include <utility>
+#include <memory>
 #include <bit>
 
 namespace irc::detail {
@@ -94,6 +95,7 @@ namespace irc::detail {
     template <typename _T, bool onStack = (sizeof(_T) < sizeof(void*) * 1024)>
     class _temp {
         _T tmp;
+
     public:
         template <typename ..._Args>
         _temp(_Args&& ...args) : tmp{std::forward<_Args>(args)...} {}
@@ -104,11 +106,11 @@ namespace irc::detail {
 
     template <typename _T>
     class _temp<_T, false> {
-        _T* const tmp;
+        std::unique_ptr<_T> const tmp;
+
     public:
         template <typename ..._Args>
-        _temp(_Args&& ...args) : tmp{new _T{std::forward<_Args>(args)...}} {}
-        ~_temp() { delete tmp; }
+        _temp(_Args&& ...args) : tmp{std::make_unique<_T>(std::forward<_Args>(args)...)} {}
 
         _T* operator ->() noexcept { return tmp; }
         const _T* operator ->() const noexcept { return tmp; }
