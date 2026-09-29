@@ -48,9 +48,9 @@ namespace irc::detail {
     using _up_uint_t = decltype(_up_uint<_Max>());
 
     template <typename _Ty>
-    consteval auto _underlying_uint() noexcept {
+    consteval auto _underlying_int() noexcept {
         if constexpr (std::is_enum_v<_Ty>) {
-            return _underlying_uint<std::underlying_type_t<_Ty>>();
+            return _underlying_int<std::underlying_type_t<_Ty>>();
         } else {
             using _Tu = _n_uint_t<sizeof(_Ty)>;
             return std::conditional_t<std::is_signed_v<_Ty>, std::make_signed_t<_Tu>, _Tu>{};
@@ -58,7 +58,7 @@ namespace irc::detail {
     }
 
     template <typename _Ty>
-    using _underlying_uint_t = decltype(_underlying_uint<_Ty>());
+    using _underlying_int_t = decltype(_underlying_int<_Ty>());
 
     template <auto _Max = std::numeric_limits<std::uintmax_t>::max()>
     consteval auto _fast_sty() noexcept {
@@ -81,7 +81,7 @@ namespace irc::detail {
         static_cast<std::uintmax_t>(_Last) - static_cast<std::uintmax_t>(_Last)>;
 
     template <unsigned int _Radix = 10>
-    constexpr unsigned int _ndigits(auto v, bool minus = true, bool plus = false) noexcept {
+    consteval unsigned int _ndigits(auto v, bool minus = true, bool plus = false) noexcept {
         static_assert(_Radix >= 2 && _Radix <= 36);
         unsigned int ndig = v != 0 && (v < 0 ? minus : plus);
         do {
@@ -113,4 +113,41 @@ namespace irc::detail {
         _T* operator ->() noexcept { return tmp; }
         const _T* operator ->() const noexcept { return tmp; }
     };
+
+    namespace transparency {
+
+        template <typename _Ty, typename K>
+        consteval bool _can_pass_through() noexcept {
+            return std::is_integral_v<_Ty> && std::is_integral_v<K>;
+        }
+
+        template <typename _Ty, typename _Tu, _Tu _Ufirst, _Tu _Ulast, typename K>
+        constexpr std::pair<_Ty, int> _try_pass_through(const K& x) noexcept {
+            static_assert(_can_pass_through<_Ty, K>(), "Types are unrelated");
+            const auto ux = static_cast<_underlying_int_t<K>>(x);
+            if (std::cmp_less(ux, _Ufirst)) {
+                return {{}, -1};
+            } else if (std::cmp_greater(ux, _Ulast)) {
+                return {{}, +1};
+            } else {
+                return {static_cast<_Ty>(static_cast<_Tu>(ux)), 0};
+            }
+        }
+
+        template <typename _Ty>
+        struct _comparator {
+            using is_transparent = void;
+
+            template <typename K1, typename K2>
+            constexpr bool operator ()(const K1& x1, const K2& x2) const noexcept {
+                if constexpr (_can_pass_through<K1, K2>()) {
+                    const auto ux1 = static_cast<_underlying_int_t<K1>>(x1);
+                    const auto ux2 = static_cast<_underlying_int_t<K2>>(x2);
+                    return std::cmp_less(ux1, ux2);
+                } else {
+                    return std::less<>{}(x1, x2);
+                }
+            }
+        };
+    }
 }

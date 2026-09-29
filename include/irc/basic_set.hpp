@@ -9,10 +9,10 @@
 #include <algorithm>
 #include <numeric>
 #include <functional>
-#include <initializer_list>
 #include <optional>
-#include <compare>
+#include <initializer_list>
 #include <iterator>
+#include <compare>
 #include <array>
 #include <string>
 #include <string_view>
@@ -82,7 +82,7 @@ namespace irc {
         constexpr static std::uintmax_t _Max = static_cast<std::uintmax_t>(_Rlast) - static_cast<std::uintmax_t>(_Rfirst);
         constexpr static std::size_t _Bbs = 8;
 
-        using _Tu = detail::_underlying_uint_t<_Ty>;
+        using _Tu = detail::_underlying_int_t<_Ty>;
         using _Ti = detail::_n_uint_t<std::max({sizeof(_Tu), sizeof(int), sizeof(detail::_up_uint_t<_Max>)})>;
         static_assert(sizeof(_Ty) == sizeof(_Tu) && sizeof(_Ti) >= sizeof(_Tu));
 
@@ -188,10 +188,6 @@ namespace irc {
                 }
             }
 
-            constexpr _Ty key(std::ptrdiff_t d = 0) const noexcept {
-                return static_cast<_Ty>(v + _Ufirst + d);
-            }
-
             constexpr _iterator(_Ti v, arr_cit p) noexcept : v{v}, p{p} {}
 
             _Ti v;
@@ -212,7 +208,7 @@ namespace irc {
 
             [[nodiscard]] constexpr value_type operator *() const noexcept {
                 assert(v <= _ILast); // Past-the-end or corrupted iterator
-                return key();
+                return static_cast<_Ty>(v + _Ufirst);
             }
 
             constexpr _iterator& operator ++() noexcept {
@@ -424,10 +420,8 @@ namespace irc {
         using value_type = _Ty;
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
-        using key_compare = std::less<>;
-        using value_compare = std::less<>;
-        using hasher = std::hash<_Ty>;
-        using key_equal = std::equal_to<>;
+        using key_compare = detail::transparency::_comparator<_Ty>;
+        using value_compare = key_compare;
         using pointer = _Ty*;
         using const_pointer = const _Ty*;
         using iterator = _iterator;
@@ -592,7 +586,9 @@ namespace irc {
             return {it, inserted, std::move(nh)};
         }
 
-        constexpr iterator insert(const_iterator, node_type&& nh) noexcept {
+        constexpr iterator insert(const_iterator pos, node_type&& nh) noexcept {
+            ((void)pos);
+            assert(_is_valid(pos));
             if (nh.empty()) [[unlikely]] {
                 return _end();
             }
@@ -616,7 +612,7 @@ namespace irc {
         }
 
         constexpr iterator erase(const_iterator pos) noexcept {
-            assert(_is_valid(pos));
+            assert(_is_valid_ne(pos));
             _to_ref(pos).reset();
             return std::next(pos);
         }
@@ -624,7 +620,7 @@ namespace irc {
         constexpr iterator erase(const_iterator first, const_iterator last) noexcept {
             assert(_is_valid(first) && _is_valid(last) && _is_ordered(first, last));
             if (first != last) [[likely]] {
-                fill<0>(first.key(), last.key(-1));
+                fill<0>(*first, static_cast<_Ty>(static_cast<_Tu>(*last) - 1));
             }
             return last;
         }
@@ -638,8 +634,13 @@ namespace irc {
 
         template <typename K>
         constexpr size_type erase(const K& x) noexcept(_is_nothrow_cmp<K>()) {
-            iterator it = find<K>(x);
-            return erase(it.key());
+            if constexpr (_can_pass_through<K>()) {
+                const auto [key, ord] = _try_pass_through(x);
+                return ord == 0 && erase(key);
+            } else {
+                iterator it = find<K>(x);
+                return it != _end() && erase(*it);
+            }
         }
 
         constexpr void swap(basic_set& other) noexcept {
@@ -647,7 +648,7 @@ namespace irc {
         }
 
         constexpr node_type extract(const_iterator pos) noexcept {
-            assert(_is_valid(pos));
+            assert(_is_valid_ne(pos));
             _ref(*pos).reset();
             return {*pos};
         }
@@ -689,9 +690,13 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr iterator find(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            const_iterator it = lower_bound<K>(x);
-            key_compare less{};
-            return it != _end() && !less(*it, x) && !less(x, *it) ? it : _end();
+            if constexpr (_can_pass_through<K>()) {
+                const auto [key, ord] = _try_pass_through(x);
+                return ord == 0 ? find(key) : _end();
+            } else {
+                const_iterator it = lower_bound<K>(x);
+                return it != _end() && !key_compare{}(*it, x) && !key_compare{}(x, *it) ? it : _end();
+            }
         }
 
         template <typename K>
@@ -705,7 +710,12 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr bool contains(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            return std::ranges::binary_search(_range, x, key_compare{});
+            if constexpr (_can_pass_through<K>()) {
+                const auto [key, ord] = _try_pass_through(x);
+                return ord == 0 && contains(key);
+            } else {
+                return std::ranges::binary_search(_range, x, key_compare{});
+            }
         }
 
         [[nodiscard]] constexpr size_type count(const key_type& key) const noexcept {
@@ -740,23 +750,41 @@ namespace irc {
 
         template <typename K>
         [[nodiscard]] constexpr std::pair<const_iterator, const_iterator> equal_range(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            const auto [first, last] = std::ranges::equal_range(_range, x, key_compare{});
-            std::pair<const_iterator, const_iterator> r;
-            if (first == _range.end()) {
-                r.first = _end();
-            } else if (const_reference rfirst = _ref(*first); rfirst.test()) {
-                r.first = _to_it(rfirst, *first);
+            if constexpr (_can_pass_through<K>()) {
+                const auto [key, ord] = _try_pass_through(x);
+                if (ord < 0) {
+                    iterator bg = _beg();
+                    return {bg, bg};
+                } else if (ord > 0) {
+                    return {_end(), _end()};
+                } else {
+                    const_reference ref = _ref(key);
+                    const_iterator it = _to_it(ref, key);
+                    if (!ref.test()) {
+                        it.next();
+                        return {it, it};
+                    }
+                    return {it, std::next(it)};
+                }
             } else {
-                r.first = std::next(_to_it(rfirst, *first));
+                const auto [first, last] = std::ranges::equal_range(_range, x, key_compare{});
+                std::pair<const_iterator, const_iterator> r;
+                if (first == _range.end()) {
+                    r.first = _end();
+                } else if (const_reference rfirst = _ref(*first); rfirst.test()) {
+                    r.first = _to_it(rfirst, *first);
+                } else {
+                    r.first = std::next(_to_it(rfirst, *first));
+                }
+                if (last == _range.end()) {
+                    r.second = _end();
+                } else if (const_reference rlast = _ref(*last); rlast.test()) {
+                    r.second = _to_it(rlast, *last);
+                } else {
+                    r.second = std::next(_to_it(rlast, *last));
+                }
+                return r;
             }
-            if (last == _range.end()) {
-                r.second = _end();
-            } else if (const_reference rlast = _ref(*last); rlast.test()) {
-                r.second = _to_it(rlast, *last);
-            } else {
-                r.second = std::next(_to_it(rlast, *last));
-            }
-            return r;
         }
 
         template <typename K>
@@ -782,13 +810,26 @@ namespace irc {
         
         template <typename K>
         [[nodiscard]] constexpr const_iterator lower_bound(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            const auto first = std::ranges::lower_bound(_range, x, key_compare{});
-            if (first == _range.end()) {
-                return _end();
-            } else if (const_reference rfirst = _ref(*first); rfirst.test()) {
-                return _to_it(rfirst, *first);
+            if constexpr (_can_pass_through<K>()) {
+                const auto [key, ord] = _try_pass_through(x);
+                if (ord < 0) {
+                    return _beg();
+                } else if (ord > 0) {
+                    return _end();
+                } else {
+                    const_reference ref = _ref(key);
+                    const_iterator it = _to_it(ref, key);
+                    return ref.test() ? it : std::next(it);
+                }
             } else {
-                return std::next(_to_it(rfirst, *first));
+                const auto first = std::ranges::lower_bound(_range, x, key_compare{});
+                if (first == _range.end()) {
+                    return _end();
+                } else if (const_reference rfirst = _ref(*first); rfirst.test()) {
+                    return _to_it(rfirst, *first);
+                } else {
+                    return std::next(_to_it(rfirst, *first));
+                }
             }
         }
         
@@ -799,7 +840,7 @@ namespace irc {
 
         [[nodiscard]] constexpr const_iterator upper_bound(const key_type& key) const noexcept {
             const_iterator it = lower_bound(key);
-            return it.key() == key ? std::next(it) : it;
+            return it != _end() && *it == key ? std::next(it) : it;
         }
 
         [[nodiscard]] constexpr iterator upper_bound(const key_type& key) noexcept {
@@ -808,13 +849,18 @@ namespace irc {
         
         template <typename K>
         [[nodiscard]] constexpr const_iterator upper_bound(const K& x) const noexcept(_is_nothrow_cmp<K>()) {
-            const auto last = std::ranges::upper_bound(_range, x, key_compare{});
-            if (last == _range.end()) {
-                return _end();
-            } else if (const_reference rlast = _ref(*last); rlast.test()) {
-                return _to_it(rlast, *last);
+            if constexpr (_can_pass_through<K>()) {
+                const_iterator it = lower_bound<K>(x);
+                return it != _end() && std::cmp_equal(*it, static_cast<detail::_underlying_int_t<K>>(x)) ? std::next(it) : it;
             } else {
-                return std::next(_to_it(rlast, *last));
+                const auto last = std::ranges::upper_bound(_range, x, key_compare{});
+                if (last == _range.end()) {
+                    return _end();
+                } else if (const_reference rlast = _ref(*last); rlast.test()) {
+                    return _to_it(rlast, *last);
+                } else {
+                    return std::next(_to_it(rlast, *last));
+                }
             }
         }
 
@@ -855,10 +901,6 @@ namespace irc {
 
         [[nodiscard]] constexpr const_local_iterator cend(size_type i) const noexcept {
             return _end(i);
-        }
-
-        constexpr key_equal key_eq() const noexcept {
-            return key_equal{};
         }
 
         constexpr void reserve(size_type) noexcept {
@@ -1515,6 +1557,10 @@ namespace irc {
             return true;
         }
 
+        constexpr bool _is_valid_ne(const iterator& it) const noexcept {
+            return _is_valid(it) && it.v != _IEnd;
+        }
+
         constexpr bool _is_ordered(const iterator& first, const iterator& last) const noexcept {
             return first.v <= last.v;
         }
@@ -1534,13 +1580,6 @@ namespace irc {
 
         constexpr const basic_set& _const() noexcept {
             return *this;
-        }
-
-        template <typename K>
-        consteval static bool _is_nothrow_cmp() noexcept {
-            return noexcept(key_compare{}(std::declval<_Ty>(), std::declval<K>()))
-                && noexcept(key_compare{}(std::declval<K>(), std::declval<_Ty>()))
-                && noexcept(key_compare{}(std::declval<K>(), std::declval<K>()));
         }
 
         constexpr arr_it _shl(size_type pos, arr_it dst) const noexcept {
@@ -1587,6 +1626,27 @@ namespace irc {
                 }
             }
             return dst;
+        }
+
+        template <typename K>
+        consteval static bool _can_pass_through() noexcept {
+            return detail::transparency::_can_pass_through<_Ty, K>();
+        }
+
+        template <typename K>
+        constexpr static std::pair<_Ty, int> _try_pass_through(const K& x) noexcept {
+            return detail::transparency::_try_pass_through<_Ty, _Tu, _Ufirst, _Ulast, K>(x);
+        }
+
+        template <typename K>
+        consteval static bool _is_nothrow_cmp() noexcept {
+            if constexpr (_can_pass_through<K>()) {
+                return true;
+            } else {
+                return noexcept(key_compare{}(std::declval<_Ty>(), std::declval<K>()))
+                    && noexcept(key_compare{}(std::declval<K>(), std::declval<_Ty>()))
+                    && noexcept(key_compare{}(std::declval<K>(), std::declval<K>()));
+            }
         }
 
     public:
