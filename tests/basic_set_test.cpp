@@ -8,57 +8,15 @@
 #include <catch2/matchers/catch_matchers_vector.hpp>
 #include <catch2/matchers/catch_matchers_range_equals.hpp>
 
-#include <irc/basic_set.hpp>
-#include <irc/max_set.hpp>
+#include "basic_set_test_types.hpp"
 
 #include <vector>
 #include <set>
-#include <tuple>
-#include <concepts>
-
-using TestTypes = std::tuple<
-    irc::basic_set<signed char, -10, +10>,
-    irc::basic_set<signed short, -100, +100>,
-    irc::basic_set<signed int, -1000, +1000, std::uint8_t>,
-    irc::basic_set<signed int, -1000, +1000, std::uint16_t>,
-    irc::basic_set<signed int, -1000, +1000, std::uint32_t>,
-    irc::basic_set<signed int, -1000, +1000, std::uint64_t>,
-    irc::basic_set<signed long, -1000, +1000, std::uint8_t>,
-    irc::basic_set<signed long, -1000, +1000, std::uint16_t>,
-    irc::basic_set<signed long, -1000, +1000, std::uint32_t>,
-    irc::basic_set<signed long, -1000, +1000, std::uint64_t>,
-    irc::basic_set<signed long long, -1000, +1000, std::uint8_t>,
-    irc::basic_set<signed long long, -1000, +1000, std::uint16_t>,
-    irc::basic_set<signed long long, -1000, +1000, std::uint32_t>,
-    irc::basic_set<signed long long, -1000, +1000, std::uint64_t>,
-    irc::basic_set<unsigned char, 10, 30>,
-    irc::basic_set<unsigned short, 100, 200>,
-    irc::basic_set<unsigned int, 1000, 2000, std::uint8_t>,
-    irc::basic_set<unsigned int, 1000, 2000, std::uint16_t>,
-    irc::basic_set<unsigned int, 1000, 2000, std::uint32_t>,
-    irc::basic_set<unsigned int, 1000, 2000, std::uint64_t>,
-    irc::basic_set<unsigned long, 1000, 2000, std::uint8_t>,
-    irc::basic_set<unsigned long, 1000, 2000, std::uint16_t>,
-    irc::basic_set<unsigned long, 1000, 2000, std::uint32_t>,
-    irc::basic_set<unsigned long, 1000, 2000, std::uint64_t>,
-    irc::basic_set<unsigned long long, 1000, 2000, std::uint8_t>,
-    irc::basic_set<unsigned long long, 1000, 2000, std::uint16_t>,
-    irc::basic_set<unsigned long long, 1000, 2000, std::uint32_t>,
-    irc::basic_set<unsigned long long, 1000, 2000, std::uint64_t>,
-    irc::max_set<signed char>,
-    irc::max_set<signed char, std::uint8_t>,
-    irc::max_set<unsigned char>,
-    irc::max_set<unsigned char, std::uint8_t>,
-    irc::basic_set<char8_t, 'a', 'z'>,
-    irc::basic_set<char16_t, 'a', 'z'>,
-    irc::basic_set<char32_t, 'a', 'z'>,
-    irc::basic_set<wchar_t, 'a', 'z'>
->;
 
 TEMPLATE_LIST_TEST_CASE(
     "Testing irc::basic_set",
     "[template]",
-    TestTypes
+    BasicSetTestTypes
 ) {
     using Set = TestType;
     using Key = typename Set::key_type;
@@ -68,13 +26,13 @@ TEMPLATE_LIST_TEST_CASE(
 
     constexpr Key First = Set::first();
     constexpr Key Last = Set::last();
-    constexpr std::size_t NRange = static_cast<std::size_t>(Set::last() - Set::first() + 1);
-    constexpr Key Mid = static_cast<Key>(Set::first() + NRange / 2);
+    constexpr std::size_t NRange = static_cast<std::size_t>(Last - First + 1);
+    constexpr Key Mid = First + static_cast<Key>((Last - First) / 2);
     STATIC_REQUIRE((First != Last && First != Mid && Last != Mid));
     
     const Key Rnd1 = static_cast<Key>(GENERATE(take(1, random(1, 8))));
-    const Key First1 = static_cast<Key>(Set::first() + Rnd1);
-    const Key Last1 = static_cast<Key>(Set::last() - Rnd1);
+    const Key First1 = static_cast<Key>(First + Rnd1);
+    const Key Last1 = static_cast<Key>(Last - Rnd1);
     REQUIRE((First1 != First && Last1 != Last && First1 != Mid && Last1 != Mid));
 
     const std::size_t NRnd = NRange - NRange / 4;
@@ -110,7 +68,7 @@ TEMPLATE_LIST_TEST_CASE(
             STATIC_REQUIRE(std::ranges::bidirectional_range<Set>);
             STATIC_REQUIRE_FALSE(std::ranges::random_access_range<Set>);
             STATIC_REQUIRE_FALSE(std::ranges::contiguous_range<Set>);
-            STATIC_REQUIRE(std::ranges::sized_range<Set> == Set::single_bucket);
+            STATIC_REQUIRE(std::ranges::sized_range<Set> == Set::is_single_bucket);
 
             STATIC_REQUIRE(std::ranges::common_range<Set>);
             STATIC_REQUIRE_FALSE(std::ranges::borrowed_range<Set>);

@@ -40,8 +40,10 @@ namespace irc::detail {
             return std::uint16_t{};
         } else if constexpr (_Max < std::numeric_limits<std::uint32_t>::max()) {
             return std::uint32_t{};
-        } else {
+        } else if constexpr (_Max < std::numeric_limits<std::uint64_t>::max()) {
             return std::uint64_t{};
+        } else {
+            return std::uintmax_t{};
         }
     }
 
@@ -147,7 +149,7 @@ namespace irc::detail {
                     const auto ux2 = static_cast<_underlying_int_t<K2>>(x2);
                     return std::cmp_less(ux1, ux2);
                 } else {
-                    return std::less<>{}(x1, x2);
+                    return (x1 < x2);
                 }
             }
         };
