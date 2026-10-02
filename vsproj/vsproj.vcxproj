@@ -30,7 +30,7 @@
     <ClInclude Include="..\include\irc\max_set.hpp" />
     <ClInclude Include="..\include\irc\set.hpp" />
     <ClInclude Include="..\tests\basic_set_test_types.hpp" />
-    <ClInclude Include="..\tests\transparency_test_types.hpp" />
+    <ClInclude Include="..\tests\comparison_test_types.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\LICENSE" />
@@ -39,7 +39,7 @@
     <None Include=".runsettings" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\tests\basic_set_transparency_test.cpp" />
+    <ClCompile Include="..\tests\basic_set_comparison_test.cpp" />
     <ClCompile Include="..\tests\main.cpp" />
     <ClCompile Include="..\tests\basic_set_test.cpp" />
   </ItemGroup>

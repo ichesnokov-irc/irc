@@ -65,15 +65,20 @@ struct ComparisonPreset {
 
 template <typename _Ty, _Ty _Rfirst, _Ty _Rmid, _Ty _Rlast>
 using ComparisonPresets = std::tuple<
-	  ComparisonPreset<TransparentlyComparable<_Ty>, _Rfirst, true, false>
-	, ComparisonPreset<TransparentlyComparable<_Ty>, _Rmid, true, false>
-	, ComparisonPreset<TransparentlyComparable<_Ty>, _Rlast, true, false>
+	  ComparisonPreset<_Ty, _Rfirst, true, false>
+	, ComparisonPreset<_Ty, _Rmid, true, false>
+	, ComparisonPreset<_Ty, _Rlast, true, false>
 	, ComparisonPreset<long long, _Rfirst, true, false>
 	, ComparisonPreset<long long, _Rmid, true, false>
 	, ComparisonPreset<long long, _Rlast, true, false>
 	, ComparisonPreset<long long, std::numeric_limits<long long>::min(), false, true>
+	, ComparisonPreset<char, std::numeric_limits<char>::max(), false, false>
+	, ComparisonPreset<short, std::numeric_limits<short>::min(), false, true>
 	, ComparisonPreset<long long, std::numeric_limits<long long>::max(), false, false>
 	, ComparisonPreset<unsigned long long, std::numeric_limits<unsigned long long>::max(), false, false>
+	, ComparisonPreset<TransparentlyComparable<_Ty>, _Rfirst, true, false>
+	, ComparisonPreset<TransparentlyComparable<_Ty>, _Rmid, true, false>
+	, ComparisonPreset<TransparentlyComparable<_Ty>, _Rlast, true, false>
 	, ComparisonPreset<TransparentlyIncomparable<true>, _Ty{}, false, true>
 	, ComparisonPreset<TransparentlyIncomparable<false>, _Ty{}, false, false>
 >;
