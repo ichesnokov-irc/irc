@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "helpers.hpp"
+
 #include <tuple>
 #include <type_traits>
-#include <limits>
-#include <optional>
 
 template <typename _Ty>
 struct TransparentlyComparable {
@@ -38,15 +38,6 @@ struct TransparentlyIncomparable {
 		return !_LessThanAll;
 	}
 };
-
-template <typename KS, typename K>
-consteval std::optional<KS> _TryGreater(K k) noexcept {
-	if (k < std::numeric_limits<K>::max()) {
-		return KS(static_cast<K>(k + 1ll));
-	} else {
-		return std::nullopt;
-	}
-}
 
 template <typename _Ty, auto _Value, bool _ShouldExist, bool _LessThanAll>
 struct ComparisonPreset {

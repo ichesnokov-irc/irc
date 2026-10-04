@@ -31,6 +31,7 @@
     <ClInclude Include="..\include\irc\set.hpp" />
     <ClInclude Include="..\tests\basic_set_test_types.hpp" />
     <ClInclude Include="..\tests\comparison_test_types.hpp" />
+    <ClInclude Include="..\tests\helpers.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\LICENSE" />

@@ -9,6 +9,7 @@
 #include <catch2/matchers/catch_matchers_range_equals.hpp>
 
 #include "basic_set_test_types.hpp"
+#include "helpers.hpp"
 
 #include <vector>
 #include <set>
@@ -905,6 +906,141 @@ TEMPLATE_LIST_TEST_CASE(
 
                 REQUIRE(s.size() == 3);
                 REQUIRE_THAT(s, Catch::Matchers::RangeEquals(std::vector<Key>{First, Mid, Last}));
+            }
+        }
+    }
+
+    SECTION("Set::lower_bound, Set::upper_bound, Set::equal_range") {
+
+        constexpr std::optional<Key> First0 = _TryLess<Key>(First);
+        constexpr std::optional<Key> Last0 = _TryGreater<Key>(Last);
+        
+        SECTION("Empty container") {
+            const Set s;
+
+            if constexpr (First0) {
+                SECTION("Queries completely below First") {
+                    REQUIRE(s.lower_bound(*First0) == s.end());
+                    REQUIRE(s.upper_bound(*First0) == s.end());
+                }
+            }
+
+            SECTION("Queries at exactly First boundary") {
+                REQUIRE(s.lower_bound(First) == s.end());
+                REQUIRE(s.upper_bound(First) == s.end());
+            }
+
+            SECTION("Queries inside the valid range") {
+                REQUIRE(s.lower_bound(Mid) == s.end());
+                REQUIRE(s.upper_bound(Mid) == s.end());
+            }
+
+            SECTION("Queries at exactly Last boundary") {
+                REQUIRE(s.lower_bound(Last) == s.end());
+                REQUIRE(s.upper_bound(Last) == s.end());
+            }
+
+            if constexpr (Last0) {
+                SECTION("Queries completely above Last") {
+                    REQUIRE(s.lower_bound(*Last0) == s.end());
+                    REQUIRE(s.upper_bound(*Last0) == s.end());
+                }
+            }
+        }
+        
+        SECTION("Elements strictly on the boundaries") {
+            const Set s{First, Last};
+            REQUIRE(s.size() == 2);
+
+            SECTION("Lower bound tests") {
+                if constexpr (First0) {
+                    REQUIRE(s.lower_bound(First0) == s.begin());
+                    REQUIRE(*s.lower_bound(First0) == First);
+                }
+
+                REQUIRE(s.lower_bound(First) == s.begin());
+                REQUIRE(*s.lower_bound(First) == First);
+
+                REQUIRE(*s.lower_bound(Mid) == Last);
+                REQUIRE(*s.lower_bound(Last) == Last);
+
+                if constexpr (Last0) {
+                    REQUIRE(s.lower_bound(*Last0) == s.end());
+                }
+            }
+
+            SECTION("Upper bound tests") {
+                if constexpr (First0) {
+                    REQUIRE(s.upper_bound(*First0) == s.begin());
+                    REQUIRE(*s.upper_bound(First0) == First);
+                }
+
+                REQUIRE(*s.upper_bound(First) == Last);
+                REQUIRE(*s.upper_bound(Mid) == Last);
+
+                REQUIRE(s.upper_bound(Last) == s.end());
+
+                if constexpr (Last0) {
+                    REQUIRE(s.upper_bound(*Last0) == s.end());
+                }
+            }
+        }
+
+        SECTION("Range with internal elements") {
+            const Set s{First, First1, Mid, Last};
+            REQUIRE(s.size() == 4);
+
+            SECTION("lower_bound") {
+                if constexpr (First0) {
+                    REQUIRE(*s.lower_bound(*First0) == First);
+                }
+                REQUIRE(*s.lower_bound(First) == First);
+                REQUIRE(*s.lower_bound(Mid) == Mid);
+                REQUIRE(*s.lower_bound(Last1) == Last);
+                REQUIRE(*s.lower_bound(Last) == Last);
+                if constexpr (Last0) {
+                    REQUIRE(s.lower_bound(*Last0) == s.end());
+                }
+            }
+
+            SECTION("upper_bound") {
+                if constexpr (First0) {
+                    REQUIRE(*s.upper_bound(*First0) == First);
+                }
+                REQUIRE(*s.upper_bound(First) == First1);
+                REQUIRE(*s.upper_bound(First1) == Mid);
+                REQUIRE(*s.upper_bound(Mid) == Last);
+                REQUIRE(*s.upper_bound(Last1) == Last);
+                REQUIRE(s.upper_bound(Last) == s.end());
+                if constexpr (Last0) {
+                    REQUIRE(s.upper_bound(*Last0) == s.end());
+                }
+            }
+
+            SECTION("equal_range") {
+                if constexpr (First0) {
+                    auto [l1, u1] = s.equal_range(*First0);
+                    REQUIRE(l1 == s.begin());
+                    REQUIRE(u1 == s.begin());
+                }
+
+                auto [l2, u2] = s.equal_range(First);
+                REQUIRE(l2 == s.begin());
+                REQUIRE(*u2 == First1);
+
+                auto [l3, u3] = s.equal_range(Last1);
+                REQUIRE(*l3 == Last);
+                REQUIRE(l3 == u3);
+
+                auto [l4, u4] = s.equal_range(Last);
+                REQUIRE(*l4 == Last);
+                REQUIRE(u4 == s.end());
+
+                if constexpr (Last0) {
+                    auto [l5, u5] = s.equal_range(*Last0);
+                    REQUIRE(l5 == s.end());
+                    REQUIRE(u5 == s.end());
+                }
             }
         }
     }
