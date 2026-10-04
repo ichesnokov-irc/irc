@@ -318,8 +318,8 @@ namespace irc {
                 assert(v < _Range);
                 if constexpr (_NBkt == 1) {
                     return _ref_base{static_cast<_Sty>(_One << v), a};
-                } else if constexpr (static_cast<std::size_t>(std::bit_width(_IEnd)) < sizeof(int) * 8) {
-                    return _ref_base{std::rotl(_One, static_cast<int>(v)), std::next(a, static_cast<difference_type>(v >> _Ibits))};
+                } else if constexpr (std::in_range<int>(_IEnd)) {
+                    return _ref_base{std::rotl(_One, static_cast<int>(v)), std::next(a, v >> _Ibits)};
                 } else {
                     return _ref_base{static_cast<_Sty>(_One << (v & _Imask)), std::next(a, v >> _Ibits)};
                 }

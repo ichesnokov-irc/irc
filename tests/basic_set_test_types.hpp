@@ -46,5 +46,7 @@ using BasicSetTestTypes = std::tuple<
     , irc::basic_set<char16_t, 'a', 'z'>
     , irc::basic_set<char32_t, 'a', 'z'>
     , irc::basic_set<wchar_t, 'a', 'z'>
+    , irc::basic_set<signed char, -100, -50>
+    , irc::basic_set<signed long, -2000, -1000>
     // TODO: Ranges on limits
 >;

@@ -8,6 +8,7 @@
 #include <ranges>
 #include <compare>
 #include <iterator>
+#include <utility>
 #include <type_traits>
 
 namespace irc::detail {
@@ -46,11 +47,12 @@ namespace irc::detail {
 
     template <typename _Ty, typename _Tu, typename _Ti, _Tu _Ufirst, _Ti _Range>
     consteval auto _make_iota_wrapper() noexcept {
-        if constexpr (std::is_same_v<_Ty, _Ti>) {
-            return std::views::iota(static_cast<_Ti>(_Ufirst), static_cast<_Ti>(_Ufirst) + _Range);
+        constexpr auto PastLast = static_cast<_Ti>(_Ufirst) + _Range;
+        if constexpr (std::is_integral_v<_Ty> && std::in_range<_Tu>(PastLast)) {
+            return std::views::iota(static_cast<_Ty>(_Ufirst), static_cast<_Ty>(PastLast));
         } else {
-            using w = _iota_wrapper<_Ty, _Tu, _Ti, _Ufirst>;
-            auto view = std::views::iota(w{_Ti{}}, w{_Range});
+            using wrapper = _iota_wrapper<_Ty, _Tu, _Ti, _Ufirst>;
+            auto view = std::views::iota(wrapper{_Ti{}}, wrapper{_Range});
             static_assert(std::ranges::random_access_range<decltype(view)>, "Ensure that iota view is random access");
             static_assert(std::ranges::sized_range<decltype(view)>, "Ensure that iota view is sized range");
             return view;
