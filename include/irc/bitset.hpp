@@ -24,9 +24,9 @@ namespace irc {
         using _Base = detail::bitset_base<_Ty, _Rfirst, _Rlast, _Sty>;
 
     public:
-        constexpr bitset() noexcept = default;
-
         using
+            _Base::_Base,
+            _Base::operator =,
             _Base::is_single_bucket,
             _Base::internal_array_type,
             _Base::reference,
@@ -39,7 +39,7 @@ namespace irc {
             _Base::last,
             _Base::range;
 
-        constexpr explicit bitset(unsigned long long val) noexcept : a{} {
+        constexpr explicit bitset(unsigned long long val) noexcept : _Base{} {
             if (sizeof(_Sty) >= sizeof(unsigned long long) || std::bit_width(val) <= _BktBits) {
                 _Sty v = static_cast<_Sty>(val);
                 if constexpr (_Bmask != _Every && is_single_bucket) {
@@ -79,7 +79,7 @@ namespace irc {
         constexpr explicit bitset(const std::basic_string_view<_CharT, _Traits>& s,
             typename std::basic_string_view<_CharT, _Traits>::std::size_t pos = 0,
             typename std::basic_string_view<_CharT, _Traits>::std::size_t n = std::size_t(-1),
-            _CharT zero = _CharT('0'), _CharT one = _CharT('1')) : a{} {
+            _CharT zero = _CharT('0'), _CharT one = _CharT('1')) : _Base{} {
             const std::size_t end = std::min({ n, _Range, s.length() - pos });
             const auto ss = s.substr(pos, end);
             auto&& it = ss.crbegin();
@@ -614,8 +614,7 @@ namespace irc {
         friend constexpr std::strong_ordering operator <=>(const bitset& lr, const bitset& rr) noexcept = default;
 
         friend constexpr void swap(bitset& lr, bitset& rr) noexcept {
-            using namespace std;
-            swap<_Base>(lr, rr);
+            lr.a.swap(rr.a);
         }
 
         friend constexpr bitset operator &(const bitset& lr, const bitset& rr) noexcept {
@@ -715,7 +714,7 @@ namespace irc {
         }
 
         const set_t& as_set() const noexcept {
-            return *static_cast<set_t*>(static_cast<_Base*>(this));
+            return *static_cast<const set_t*>(static_cast<const _Base*>(this));
         }
 
         unordered_set_t& as_unordered_set() noexcept {
@@ -723,7 +722,7 @@ namespace irc {
         }
 
         const unordered_set_t& as_unordered_set() const noexcept {
-            return *static_cast<unordered_set_t*>(static_cast<_Base*>(this));
+            return *static_cast<const unordered_set_t*>(static_cast<const _Base*>(this));
         }
     };
 }

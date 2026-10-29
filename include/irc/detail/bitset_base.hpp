@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common_detail.hpp"
+#include "detail.hpp"
 #include "iota.hpp"
 
 #include <cassert>
@@ -167,8 +167,6 @@ namespace irc::detail {
 
         arr_t a;
 
-        constexpr bitset_base() noexcept : a{} {}
-
     public:
         constexpr static bool is_single_bucket = _NBkt == 1;
         using internal_array_type = arr_t;
@@ -187,7 +185,10 @@ namespace irc::detail {
             }
         }
 
-        constexpr explicit bitset_base(const internal_array_type& a) noexcept : a{ a } {
+        constexpr bitset_base() noexcept : a{} {}
+        constexpr bitset_base(const bitset_base&) noexcept = default;
+
+        constexpr explicit bitset_base(const internal_array_type& a) noexcept : a{a} {
             a.back() &= _Bmask;
         }
 
@@ -224,13 +225,6 @@ namespace irc::detail {
 
         [[nodiscard]] constexpr static _Ty last() noexcept {
             return _Rlast;
-        }
-
-        friend constexpr bool operator ==(const bitset_base& lr, const bitset_base& rr) noexcept = default;
-        friend constexpr std::strong_ordering operator <=>(const bitset_base& lr, const bitset_base& rr) noexcept = default;
-
-        friend constexpr void swap(bitset_base& lr, bitset_base& rr) noexcept {
-            lr.swap(rr);
         }
     };
 }

@@ -20,10 +20,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\irc\auto_range.hpp" />
-    <ClInclude Include="..\include\irc\basic_set.hpp" />
+    <ClInclude Include="..\include\irc\set.hpp" />
     <ClInclude Include="..\include\irc\bitset.hpp" />
     <ClInclude Include="..\include\irc\detail\bitset_base.hpp" />
-    <ClInclude Include="..\include\irc\detail\common_detail.hpp" />
+    <ClInclude Include="..\include\irc\detail\detail.hpp" />
     <ClInclude Include="..\include\irc\detail\enum_range_detail.hpp" />
     <ClInclude Include="..\include\irc\detail\iota.hpp" />
     <ClInclude Include="..\include\irc\detail\auto_range_detail.hpp" />
