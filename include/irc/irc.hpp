@@ -4,8 +4,5 @@
 
 #pragma once
 
-#include "basic_set.hpp"
-#include "set.hpp"
-#include "max_set.hpp"
-#include "enum_set.hpp"
 #include "bitset.hpp"
+#include "set.hpp"
